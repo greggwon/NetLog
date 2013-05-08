@@ -32,7 +32,7 @@ namespace NetLog.Logging
 		public void ReadConfiguration() {
 			try
 			{
-				String props = System.Environment.GetEnvironmentVariable("seqtech.logging.properties");
+				String props = System.Environment.GetEnvironmentVariable("netlog.logging.properties");
 				if( props == null )
 					props = "logging.properties";
 				if( new FileInfo( props ).Exists == false ) {

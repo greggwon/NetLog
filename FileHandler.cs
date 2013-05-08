@@ -87,7 +87,7 @@ namespace NetLog.Logging
 			}
 		}
 
-		public string baseFileName( string path ) {
+		public virtual string baseFileName( string path ) {
 			if( gens > 1 )
 				return path+".0";
 			return path;

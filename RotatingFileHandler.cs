@@ -10,13 +10,15 @@ namespace NetLog.Logging {
 		private string filenameFormat = "yyyyMMdd";
 		private string openFormat;
 
+		public RotatingFileHandler() {
+		}
 		public RotatingFileHandler ( String file ) : this( file, "yyyyMMdd" ) {
 		}
 		public RotatingFileHandler( String file, String pattern ) : base( file ) {
 			filenameFormat = pattern;
 			openFormat = DateTime.Now.ToString( pattern );
 		}
-		public String FilenameFormat {
+		public String CheckPattern {
 			get {return filenameFormat;}
 			set {
 				filenameFormat = value;
@@ -28,9 +30,12 @@ namespace NetLog.Logging {
 				}
 			}
 		}
+		public override string baseFileName ( string path ) {
+			return DateTime.Now.ToString( path );
+		}
 
 		protected override bool CheckNewFile() {
-			return openFormat.Equals( DateTime.Now.ToString( filenameFormat ) ) == false;
+			return openFormat.Equals( DateTime.Now.ToString( CheckPattern ) ) == false;
 		}
 
 		protected override void shuffleDown() {
@@ -45,7 +50,7 @@ namespace NetLog.Logging {
 			do {
 
 				try {
-					outp = new StreamWriter( nm = DateTime.Now.ToString( rname) + ".0", append );
+					outp = new StreamWriter( nm = DateTime.Now.ToString( rname), append );
 					outp.AutoFlush = false;
 					finfo = new FileInfo( nm );
 				} catch ( IOException ex ) {
@@ -56,7 +61,7 @@ namespace NetLog.Logging {
 				}
 			} while ( outp == null );
 			Filename = rname;
-			openFormat = DateTime.Now.ToString( filenameFormat ) ;
+			openFormat = DateTime.Now.ToString( CheckPattern ) ;
 			return outp;
 		}
 	}
