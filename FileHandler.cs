@@ -13,7 +13,7 @@ namespace NetLog.Logging
 		private StreamWriter outf;
 		private long len, limit;
 		private int gens;
-		private FileInfo finfo;
+		protected FileInfo finfo;
 		private string name;
 		private bool asyncFlush = true;
 		private bool consoleDebug;
@@ -21,6 +21,17 @@ namespace NetLog.Logging
 		public new bool ConsoleDebug {
 			get { return consoleDebug; }
 			set { consoleDebug = value; }
+		}
+
+		public string Filename {
+			get { return name; }
+			set { 
+				name = value;
+				if( outf != null ) {
+					Flush();
+					Close();
+				}
+			}	
 		}
 
 		public override void Close() {
@@ -70,9 +81,7 @@ namespace NetLog.Logging
 					return;
 				this.name = value;
 				lock( this ) {
-					if( outf != null ) {
-						outf.Close();
-					}
+					Close();
 					outf = baseFileOpen( true );
 				}
 			}
@@ -108,7 +117,7 @@ namespace NetLog.Logging
 			limit = 20 * 1024 * 1024;
 		}
 
-		private void shuffleDown() {
+		protected virtual void shuffleDown() {
 			string t1 = this.name + ".temp";
 			for (int i = gens - 1; i > 0; --i)
 			{
@@ -135,7 +144,7 @@ namespace NetLog.Logging
 				new FileInfo( t1 ).Delete();
 		}
 
-		private StreamWriter baseFileOpen( bool append) {
+		protected virtual StreamWriter baseFileOpen( bool append) {
 			string rname = name;
 			StreamWriter outp = null;
 			int cnt = 1;
@@ -159,11 +168,23 @@ namespace NetLog.Logging
 		public override void Publish( LogRecord rec ) {
 			Enqueue( rec );
 		}
+
 		protected override void PushBoundry() {
 			if( asyncFlush && outf != null )
 				outf.Flush();
 		}
 
+		protected virtual bool CheckNewFile() {
+			return( outf != null && new FileInfo( name+".0" ).Length > limit );
+		}
+
+		/// <summary>
+		/// There will only ever be exactly one thread calling into this method, so
+		/// we don't need to lock anything regarding output file changes.  The single
+		/// thread will see an atomic view of the changes it is making and that keeps
+		/// us from having to worry about multiple open/closes or file rotations
+		/// </summary>
+		/// <param name="rec"></param>
 		protected override void Push( LogRecord rec ) {
 			// stop now if not loggable
 			if (rec.Level.IntValue < this.Level.IntValue || this.Level == Level.OFF)
@@ -171,9 +192,9 @@ namespace NetLog.Logging
 				return;
 			}
 
-			if( outf != null && new FileInfo( name+".0" ).Length > limit ) {
-				outf.Close();
-				shuffleDown();
+			if ( outf == null || CheckNewFile( ) ) {
+				Close();
+				shuffleDown( );
 				// trunc/reopen the file.
 				outf = baseFileOpen( false );
 				len = 0;

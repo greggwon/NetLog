@@ -83,13 +83,15 @@ namespace NetLog.Logging
 		protected bool processor() {
 			LogRecord rec;
 
+			bool recurseTaken = _spinlock.IsHeldByCurrentThread;
 			bool lockTaken = _spinlock.IsHeldByCurrentThread;
+
 			int cnt = 0;
 			try
 			{
 				if ( consoleDebug )
 					Console.WriteLine( "Checking for too many records queued: " + Thread.CurrentThread );
-				while( records.Count > holdCount ) {
+				while( holding && records.Count > holdCount ) {
 					if( !lockTaken )
 						_spinlock.TryEnter( ref lockTaken );
 					if(lockTaken) {
@@ -124,7 +126,7 @@ namespace NetLog.Logging
 						Console.WriteLine( "lock is still busy: " + Thread.CurrentThread );
 				}
 			} finally {
-				if (lockTaken) _spinlock.Exit(false);
+				if ( lockTaken && !recurseTaken ) _spinlock.Exit( false );
 			}
 			return lockTaken;
 		}

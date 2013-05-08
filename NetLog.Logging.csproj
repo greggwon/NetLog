@@ -53,6 +53,7 @@
     <Compile Include="LogRecord.cs" />
     <Compile Include="LogTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RotatingFileHandler.cs" />
     <Compile Include="StreamFormatter.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

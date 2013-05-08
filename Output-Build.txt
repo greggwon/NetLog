@@ -1,0 +1,5 @@
+﻿1>------ Build started: Project: ELAMDriver, Configuration: Debug Any CPU ------
+1>  ELAMDriver -> C:\Users\gregg\Documents\Visual Studio 2012\Projects\ELAMDriver\ELAMDriver\bin\Debug\ELAMDriver.dll
+2>------ Build started: Project: ModbusPolling, Configuration: Debug Any CPU ------
+2>  ModbusPolling -> C:\Users\gregg\Documents\Visual Studio 2012\Projects\ELAMDriver\ModbusPolling\bin\Debug\ModbusPolling.dll
+========== Build: 2 succeeded, 0 failed, 1 up-to-date, 0 skipped ==========
