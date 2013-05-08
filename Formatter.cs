@@ -18,10 +18,13 @@ namespace Seqtech.Logging
 		public abstract string format( LogRecord record );
 	
 		/**
-		 * The default formatting does nothing but return the message field.
+		 *  Uses String.Format( record.getMessage(), record.Parameters ), if parametrs are
+		 *  provided, otherwise returns record.getMessage().
 		 */
 		public string formatMessage( LogRecord record ) {
-			return record.getMessage();
+			if( record.Parameters == null || record.Parameters.Count() == 0 )
+				return record.getMessage();
+			return String.Format( record.getMessage(), record.Parameters );
 		}
 
 		/**

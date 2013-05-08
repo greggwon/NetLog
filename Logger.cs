@@ -231,13 +231,17 @@ namespace Seqtech.Logging
 		{
 			log( new LogRecord( level, msg ) );
 		}
-		public void log( Level level, string msg, Exception ex )
-		{
+		public void log ( Level level, string msg, Exception ex ) {
 			LogRecord rec = new LogRecord( level, msg );
 			rec.Thrown = ex;
 			log( rec );
 		}
-		public void log( Level level, Exception ex )
+		public void log ( Level level, string msg, object param ) {
+			LogRecord rec = new LogRecord( level, msg );
+			rec.Parameters = new object[] { param };
+			log( rec );
+		}
+		public void log ( Level level, Exception ex )
 		{
 			LogRecord rec = new LogRecord( level, ex.Message );
 			rec.Thrown = ex;
@@ -256,7 +260,11 @@ namespace Seqtech.Logging
 			rec.Parameters = parms;
 			log (rec) ;
 		}
-					
+		
+		public bool isLoggable( Level level ) {
+			return (level.IntValue >= this.Level.IntValue && this.Level != Level.OFF);
+		}
+		
 		public void log( LogRecord rec )
 		{
 			// stop now if not loggable
