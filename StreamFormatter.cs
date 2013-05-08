@@ -11,15 +11,21 @@ namespace Seqtech.Logging
 		private bool withTime = true;
 		private bool brief = false;
 		private bool trunc = false;
-		private bool withClasses = false;
-		private bool withMethods = false;
+		private bool withClasses = true;
+		private bool withMethods = true;
 		private string eol = "\n";
 		private string fmt = "yyyy/MM/dd HH:mm:ss.fff", bfmt = "HH:mm:ss";
 
 		public StreamFormatter()
 		{
+			Brief = false;
+			WithTime = true;
+			TruncatedPackageName = false;
 		}
 
+		/**
+		 * The default is false, true, false.
+		 */
 		public StreamFormatter( bool brief, bool withTime, bool truncPkgName )
 		{
 			Brief = brief;
@@ -39,15 +45,16 @@ namespace Seqtech.Logging
 			get { return trunc; }
 			set { trunc = value; }
 		}
-		/* Don't know how to support these two yet */
-//		public bool WithClass {
-//			get { return withClasses; }
-//			set { withClasses = WithClass; }
-//		}
-//		public bool WithMethod {
-//			get { return withMethods; }
-//			set { withMethods = value; }
-//		}
+
+		public bool WithClass {
+			get { return withClasses; }
+			set { withClasses = WithClass; }
+		}
+		public bool WithMethod {
+			get { return withMethods; }
+			set { withMethods = value; }
+		}
+
 		public override string format( LogRecord rec ) {
 			DateTime dt = rec.Millis;
 			StringBuilder b = new StringBuilder();
@@ -57,6 +64,8 @@ namespace Seqtech.Logging
 				b.Append( withTime ? " [" : "[");
 				if( trunc ) {
 					String[] s = rec.LoggerName.Split("\\.".ToCharArray(0,2));
+
+					// we could put a single character at each spot for the 'compacted' class name.
 //					for( int i = 0; i < s.Length-1; ++i ) {
 //						b.Append(s[i][0]);
 //						b.Append(".");

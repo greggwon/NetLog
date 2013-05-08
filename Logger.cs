@@ -104,26 +104,33 @@ namespace Seqtech.Logging
 		private Logger( string name ) {
 			this.name = name;
 		}
+
 		public void finest ( Exception ex ) {
-			LogRecord rec = new LogRecord( Level.FINEST, ex.Message );
-			rec.Thrown = ex;
-			log( rec );
+			log( Level.FINEST, ex );
 		}
-		public void finest ( string msg )
-		{
-			LogRecord rec = new LogRecord(Level.FINEST, msg);
-			log(rec);
+		public void finest ( string msg ) {
+			log( Level.FINEST, msg );
 		}
+		public void finest ( string msg, object param ) {
+			log( Level.FINEST, msg, param );
+		}
+		public void finest ( string msg, object[] parms ) {
+			log( Level.FINEST, msg, parms );
+		}
+
 		public void finer ( Exception ex ) {
-			LogRecord rec = new LogRecord( Level.FINER, ex.Message );
-			rec.Thrown = ex;
-			log( rec );
+			log( Level.FINER, ex );
 		}
-		public void finer ( string msg )
-		{
-			LogRecord rec = new LogRecord(Level.FINER, msg);
-			log(rec);
+		public void finer ( string msg ) {
+			log( Level.FINER, msg );
 		}
+		public void finer ( string msg, object param ) {
+			log( Level.FINER, msg, param );
+		}
+		public void finer ( string msg, object[ ] parms ) {
+			log( Level.FINER, msg, parms );
+		}
+
 		public void entering(string sourceClass, string sourceMethod)
 		{
 			LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
@@ -179,51 +186,74 @@ namespace Seqtech.Logging
 			log(rec);
 		}
 
-		public void fine(string msg)
-		{
-			LogRecord rec = new LogRecord( Level.FINE, msg );
-			log(rec);
-		}
 		public void fine ( Exception ex ) {
-			LogRecord rec = new LogRecord( Level.FINE, ex.Message );
-			rec.Thrown = ex;
-			log( rec );
+			log( Level.FINE, ex );
+		}
+		public void fine ( string msg ) {
+			log( Level.FINE, msg );
+		}
+		public void fine ( string msg, object param ) {
+			log( Level.FINE, msg, param );
+		}
+		public void fine ( string msg, object[ ] parms ) {
+			log( Level.FINE, msg, parms );
+		}
+
+		public void config ( Exception ex ) {
+			log( Level.CONFIG, ex );
 		}
 		public void config ( string msg ) {
-			LogRecord rec = new LogRecord( Level.CONFIG, msg );
-			log( rec );
+			log( Level.CONFIG, msg );
 		}
-		public void config ( Exception ex ) {
-			LogRecord rec = new LogRecord( Level.INFO, ex.Message );
-			rec.Thrown = ex;
-			log( rec );
+		public void config ( string msg, object param ) {
+			log( Level.CONFIG, msg, param );
 		}
-		public void info ( string msg )
-		{
-			LogRecord rec = new LogRecord( Level.INFO, msg );
-			log(rec);
+		public void config ( string msg, object[ ] parms ) {
+			log( Level.CONFIG, msg, parms );
 		}
+
 		public void info ( Exception ex ) {
-			LogRecord rec = new LogRecord( Level.INFO, ex.Message );
-			rec.Thrown = ex;
-			log( rec );
+			log( Level.INFO, ex );
 		}
+		public void info ( string msg ) {
+			log( Level.INFO, msg );
+		}
+		public void info ( string msg, object param ) {
+			log( Level.INFO, msg, param );
+		}
+		public void info ( string msg, object[ ] parms ) {
+			log( Level.INFO, msg, parms );
+		}
+
 		public void warning ( Exception ex ) {
-			LogRecord rec = new LogRecord( Level.WARNING, ex.Message );
-			rec.Thrown = ex;
-			log( rec );
+			log( Level.WARNING, ex );
 		}
-		public void warning ( string msg )
-		{
-			LogRecord rec = new LogRecord(Level.WARNING, msg);
-			log(rec);
+		public void warning ( string msg ) {
+			log( Level.WARNING, msg );
+		}
+		public void warning ( string msg, object param ) {
+			log( Level.WARNING, msg, param );
+		}
+		public void warning ( string msg, object[ ] parms ) {
+			log( Level.WARNING, msg, parms );
+		}
+
+		public void severe ( Exception ex ) {
+			log( Level.SEVERE, ex );
 		}
 		public void severe ( string msg ) {
-			LogRecord rec = new LogRecord( Level.SEVERE, msg );
-			log( rec );
+			log( Level.SEVERE, msg );
 		}
-		public void severe ( Exception ex ) {
-			LogRecord rec = new LogRecord( Level.SEVERE, ex.Message );
+		public void severe ( string msg, object param ) {
+			log( Level.SEVERE, msg, param );
+		}
+		public void severe ( string msg, object[ ] parms ) {
+			log( Level.SEVERE, msg, parms );
+		}
+
+
+		public void log ( Level level, Exception ex ) {
+			LogRecord rec = new LogRecord( level, ex.Message );
 			rec.Thrown = ex;
 			log( rec );
 		}
@@ -241,20 +271,22 @@ namespace Seqtech.Logging
 			rec.Parameters = new object[] { param };
 			log( rec );
 		}
-		public void log ( Level level, Exception ex )
-		{
-			LogRecord rec = new LogRecord( level, ex.Message );
+
+		public void log ( Level level, string msg, Exception ex, object[ ] parms ) {
+			LogRecord rec = new LogRecord( level, ex.ToString( ) );
+			rec.Parameters = parms;
 			rec.Thrown = ex;
 			log( rec );
 		}
-		public void log(Level level, string msg, Exception ex, object[] parms)
-		{
-			LogRecord rec = new LogRecord(level, ex.ToString());
-			rec.Parameters = parms;
+
+		public void log ( Level level, string msg, Exception ex, object parm ) {
+			LogRecord rec = new LogRecord( level, ex.ToString( ) );
+			rec.Parameters = new object[]{ parm };
 			rec.Thrown = ex;
-			log (rec) ;
+			log( rec );
 		}
-		public void log(Level level, string msg, object[] parms)
+
+		public void log ( Level level, string msg, object[ ] parms )
 		{
 			LogRecord rec = new LogRecord( level, msg );
 			rec.Parameters = parms;
