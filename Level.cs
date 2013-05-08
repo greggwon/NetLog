@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Collections;
 using System.Threading;
 
-namespace Seqtech.Logging
+namespace NetLog.Logging
 {
 	public class Level
 	{

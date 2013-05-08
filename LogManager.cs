@@ -7,7 +7,7 @@ using System.Collections;
 using System.IO;
 using System.Reflection;
 
-namespace Seqtech.Logging
+namespace NetLog.Logging
 {
 	public class LogManager
 	{
@@ -69,13 +69,22 @@ namespace Seqtech.Logging
 					int idx;
 					if( line.StartsWith("handlers=" ) ) {
 						string[]arr = line.Substring( "handlers=".Length ).Split( new char[]{','} ) ;
-						Logger.getLogger("").GetHandlers().Clear();
+						if( arr.Count() > 0 )
+							Logger.getLogger("").GetHandlers().Clear();
 						foreach( string cls in arr ) {
 							Handler h = (Handler)Activator.CreateInstance( Type.GetType(cls) );
+							if( h == null ) {
+								Console.WriteLine("Can't load Handler class: "+cls );
+								continue;
+							}
 							handlers[cls] = h;
 							if( consoleDebug )
 								Console.WriteLine("adding handler: "+cls );
 							Logger.getLogger("").GetHandlers().Add( h );
+						}
+						if( Logger.getLogger("").GetHandlers().Count == 0 ) {
+							// put back a console handler if the handlers could not be loaded
+							Logger.getLogger("").AddHandler( new ConsoleHandler() );
 						}
 						if (consoleDebug)
 							Console.WriteLine("handlers now (" + Logger.getLogger("").GetHandlers().Count + ") :" + Logger.getLogger("").GetHandlers()[0]);

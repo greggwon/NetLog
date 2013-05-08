@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 
-namespace Seqtech.Logging
+namespace NetLog.Logging
 {
 	public abstract class Handler
 	{
@@ -75,9 +75,12 @@ namespace Seqtech.Logging
 
 		/**
 		 * The processsing loop with spin lock that will cause only one thread
-		 * at a time to be writing.
+		 * at a time to be writing.  This can be called by "Flush" and "Close" implementations to
+		 * make sure that the queue is empty.  Returns false if there is still I/O being
+		 * done by another thread, true when the calling thread took the lock and completed
+		 * the loop, thus assuring the queue is empty.
 		 */
-		private void processor() {
+		protected bool processor() {
 			LogRecord rec;
 
 			bool lockTaken = _spinlock.IsHeldByCurrentThread;
@@ -123,6 +126,7 @@ namespace Seqtech.Logging
 			} finally {
 				if (lockTaken) _spinlock.Exit(false);
 			}
+			return lockTaken;
 		}
 
 		/**

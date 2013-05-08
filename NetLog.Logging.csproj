@@ -7,7 +7,7 @@
     <ProjectGuid>{DD1C3FD6-E234-4B47-AFA3-6DA51C1F7EAC}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Seqtech.Logging</RootNamespace>
+    <RootNamespace>NetLog.Logging</RootNamespace>
     <AssemblyName>NetLog</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading;
 using System.IO;
 
-namespace Seqtech.Logging
+namespace NetLog.Logging
 {
 	public class FileHandler : Handler
 	{
@@ -18,12 +18,17 @@ namespace Seqtech.Logging
 		private bool asyncFlush = true;
 		private bool consoleDebug;
 
-		public bool ConsoleDebug {
+		public new bool ConsoleDebug {
 			get { return consoleDebug; }
 			set { consoleDebug = value; }
 		}
 
 		public override void Close() {
+			while( !processor() ) {
+				lock( this ) {
+					Monitor.Wait( this, 400 );
+				}
+			}
 			if( outf != null ) {
 				outf.Close();
 				outf = null;
@@ -31,7 +36,16 @@ namespace Seqtech.Logging
 		}
 
 		public override void Flush() {
-			outf.Flush();
+			while ( !processor( ) ) {
+				if ( consoleDebug )
+					Console.WriteLine( "still output pending, waiting" );
+				lock ( this ) {
+					Monitor.Wait( this, 400 );
+				}
+			}
+			if ( consoleDebug )
+				Console.WriteLine( "no more output pending, flushing I/O" );
+			outf.Flush( );
 		}
 
 		public bool IncrementalFlush {

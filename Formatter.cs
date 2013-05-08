@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Seqtech.Logging
+namespace NetLog.Logging
 {
 	public abstract class Formatter
 	{

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Seqtech.Logging
+namespace NetLog.Logging
 {
 	public class StreamFormatter : Formatter
 	{
@@ -117,7 +117,10 @@ namespace Seqtech.Logging
 			b.Append( formatMessage( rec ) );
 			if( rec.Thrown != null ) {
 				b.Append( eol );
-				b.Append( rec.Thrown.StackTrace );
+				if ( rec.Thrown.StackTrace != null && rec.Thrown.StackTrace.Length > 0 )
+					b.Append( rec.Thrown.StackTrace );
+				else
+					b.Append( "*** No StackTrace Lines Present *** ");
 			}
 			b.Append( eol );
 			return b.ToString();

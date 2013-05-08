@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections;
 
-namespace Seqtech.Logging
+namespace NetLog.Logging
 {
     public class Logger
     {
@@ -38,7 +38,7 @@ namespace Seqtech.Logging
 						Handler h = new ConsoleHandler();
 						l.handlers.Add( h );
 						if( h.Formatter == null )
-							h.Formatter = new StreamFormatter( false, false, false );
+							h.Formatter = new StreamFormatter();
 						l.level = Level.INFO;
 					}
 					LogManager.GetLogManager().AddLogger(l);
@@ -47,6 +47,21 @@ namespace Seqtech.Logging
 				}
 			}
 			return l;
+		}
+
+		// Will flush all Handlers and return.
+		public void Flush() {
+			Logger logger = this;
+			while ( logger != null ) {
+				if ( consoleDebug )
+					Console.WriteLine( "Flushing \"" + Name + "\" handlers: " + handlers.Count );
+				foreach ( Handler h in logger.GetHandlers( ) ) {
+					h.Flush();
+				}
+				if ( UseParentHandlers == false )
+					break;
+				logger = logger.Parent;
+			}
 		}
 
 		public Level Level {
@@ -111,6 +126,15 @@ namespace Seqtech.Logging
 		public void finest ( string msg ) {
 			log( Level.FINEST, msg );
 		}
+		public void finest ( string msg, Exception ex ) {
+			log( Level.FINEST, msg, ex );
+		}
+		public void finest ( string msg, Exception ex, object param ) {
+			log( Level.FINEST, msg, ex, param );
+		}
+		public void finest ( string msg, Exception ex, object[ ] parms ) {
+			log( Level.FINEST, msg, ex, parms );
+		}
 		public void finest ( string msg, object param ) {
 			log( Level.FINEST, msg, param );
 		}
@@ -123,6 +147,15 @@ namespace Seqtech.Logging
 		}
 		public void finer ( string msg ) {
 			log( Level.FINER, msg );
+		}
+		public void finer ( string msg, Exception ex ) {
+			log( Level.FINER, msg, ex );
+		}
+		public void finer ( string msg, Exception ex, object param ) {
+			log( Level.FINER, msg, ex, param );
+		}
+		public void finer ( string msg, Exception ex, object[ ] parms ) {
+			log( Level.FINER, msg, ex, parms );
 		}
 		public void finer ( string msg, object param ) {
 			log( Level.FINER, msg, param );
@@ -192,6 +225,15 @@ namespace Seqtech.Logging
 		public void fine ( string msg ) {
 			log( Level.FINE, msg );
 		}
+		public void fine ( string msg, Exception ex ) {
+			log( Level.FINE, msg, ex );
+		}
+		public void fine ( string msg, Exception ex, object param ) {
+			log( Level.FINE, msg, ex, param );
+		}
+		public void fine ( string msg, Exception ex, object[ ] parms ) {
+			log( Level.FINE, msg, ex, parms );
+		}
 		public void fine ( string msg, object param ) {
 			log( Level.FINE, msg, param );
 		}
@@ -204,6 +246,15 @@ namespace Seqtech.Logging
 		}
 		public void config ( string msg ) {
 			log( Level.CONFIG, msg );
+		}
+		public void config ( string msg, Exception ex ) {
+			log( Level.CONFIG, msg, ex );
+		}
+		public void config ( string msg, Exception ex, object param ) {
+			log( Level.CONFIG, msg, ex, param );
+		}
+		public void config ( string msg, Exception ex, object[ ] parms ) {
+			log( Level.CONFIG, msg, ex, parms );
 		}
 		public void config ( string msg, object param ) {
 			log( Level.CONFIG, msg, param );
@@ -218,6 +269,15 @@ namespace Seqtech.Logging
 		public void info ( string msg ) {
 			log( Level.INFO, msg );
 		}
+		public void info ( string msg, Exception ex ) {
+			log( Level.INFO, msg, ex );
+		}
+		public void info ( string msg, Exception ex, object param ) {
+			log( Level.INFO, msg, ex, param );
+		}
+		public void info ( string msg, Exception ex, object[ ] parms ) {
+			log( Level.INFO, msg, ex, parms );
+		}
 		public void info ( string msg, object param ) {
 			log( Level.INFO, msg, param );
 		}
@@ -231,6 +291,15 @@ namespace Seqtech.Logging
 		public void warning ( string msg ) {
 			log( Level.WARNING, msg );
 		}
+		public void warning ( string msg, Exception ex ) {
+			log( Level.WARNING, msg, ex );
+		}
+		public void warning ( string msg, Exception ex, object param ) {
+			log( Level.WARNING, msg, ex, param );
+		}
+		public void warning ( string msg, Exception ex, object[ ] parms ) {
+			log( Level.WARNING, msg, ex, parms );
+		}
 		public void warning ( string msg, object param ) {
 			log( Level.WARNING, msg, param );
 		}
@@ -243,6 +312,15 @@ namespace Seqtech.Logging
 		}
 		public void severe ( string msg ) {
 			log( Level.SEVERE, msg );
+		}
+		public void severe ( string msg, Exception ex ) {
+			log( Level.SEVERE, msg, ex );
+		}
+		public void severe ( string msg, Exception ex, object param ) {
+			log( Level.SEVERE, msg, ex, param );
+		}
+		public void severe ( string msg, Exception ex, object[ ] parms ) {
+			log( Level.SEVERE, msg, ex, parms );
 		}
 		public void severe ( string msg, object param ) {
 			log( Level.SEVERE, msg, param );
