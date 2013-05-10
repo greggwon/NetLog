@@ -56,7 +56,9 @@ namespace NetLog.Logging
 			}
 			if ( consoleDebug )
 				Console.WriteLine( "no more output pending, flushing I/O" );
-			outf.Flush( );
+			if( outf != null ) {
+				outf.Flush( );
+			}
 		}
 
 		public bool IncrementalFlush {

@@ -41,6 +41,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConsoleHandler.cs" />
+    <Compile Include="EventLogFormatter.cs" />
+    <Compile Include="EventLogHandler.cs" />
     <Compile Include="FileHandler.cs" />
     <Compile Include="Filter.cs" />
     <Compile Include="Formatter.cs" />

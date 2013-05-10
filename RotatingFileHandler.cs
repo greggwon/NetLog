@@ -21,9 +21,9 @@ namespace NetLog.Logging {
 		public String CheckPattern {
 			get {return filenameFormat;}
 			set {
-				filenameFormat = value;
-				if( CheckNewFile() ) {
-					lock( this ) {
+				lock ( this ) {
+					filenameFormat = value;
+					if( CheckNewFile() ) {
 						Flush();
 						Close();
 					}
@@ -35,6 +35,8 @@ namespace NetLog.Logging {
 		}
 
 		protected override bool CheckNewFile() {
+			if( openFormat == null )
+				return true;
 			return openFormat.Equals( DateTime.Now.ToString( CheckPattern ) ) == false;
 		}
 

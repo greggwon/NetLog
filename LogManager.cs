@@ -72,7 +72,13 @@ namespace NetLog.Logging
 						if( arr.Count() > 0 )
 							Logger.getLogger("").GetHandlers().Clear();
 						foreach( string cls in arr ) {
-							Handler h = (Handler)Activator.CreateInstance( Type.GetType(cls) );
+							Handler h;
+							try {
+								h = (Handler)Activator.CreateInstance( Type.GetType(cls) );
+							} catch( Exception ex ) {
+								Console.WriteLine( "# ERROR # Error creating handler \""+cls+"\": "+ex.Message+"\n"+ex.Source+": "+ex.StackTrace );
+								continue;
+							}
 							if( h == null ) {
 								Console.WriteLine("Can't load Handler class: "+cls );
 								continue;
@@ -117,9 +123,15 @@ namespace NetLog.Logging
 								Console.WriteLine("instantiating config: " + cls);
 							Activator.CreateInstance(Type.GetType(cls));
 						}
-					} else if( line.Contains(".level=") ) {
-						String name = line.Substring( 0, line.IndexOf(".level=") );
-						String level = line.Substring( line.IndexOf(".level=")+".level=".Length );
+					} else if ( line.Contains( ".level=" ) || line.Contains( ".Level=" ) ) {
+						String name;
+						int lidx;
+						if( line.Contains( ".level=" ) )
+							name = line.Substring( 0, lidx= line.IndexOf(".level=") );
+						else // if( line.Contains( ".Level=" ) )
+							name = line.Substring( 0, lidx=line.IndexOf(".Level=") );
+
+						String level = line.Substring( lidx+(".level=".Length) );
 						Level l = Level.parse( level );
 						levels[name] = l;
 						if( handlers.ContainsKey( name ) ) {
@@ -141,19 +153,27 @@ namespace NetLog.Logging
 							}
 							if (consoleDebug)
 								Console.WriteLine("found property name: " + arr[0] + " and value =" + arr[1]);
-							if( handlers.ContainsKey( cls ) ) {
-								string propnm = nm[ nm.Length-1 ];
-								if (consoleDebug)
-									Console.WriteLine("found handler property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
-								Handler h = handlers[cls];
-								putPropValue( h, propnm, arr[1] );
-							} else if( formatters.ContainsKey( cls ) ) {
-								string propnm = nm[nm.Length - 1];
-								if (consoleDebug)
-									Console.WriteLine("found handler property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
-								Formatter f = formatters[cls];
-								putPropValue( f, propnm, arr[1] );
-							}			
+							try {
+								if( handlers.ContainsKey( cls ) ) {
+									string propnm = nm[ nm.Length-1 ];
+									if (consoleDebug)
+										Console.WriteLine("found handler property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
+									Handler h = handlers[cls];
+									if( h != null ) {
+										putPropValue( h, propnm, arr[1] );
+									} else {
+										Console.WriteLine("# ERROR # Handler property value reference to unused handler class: "+cls);
+									}
+								} else if( formatters.ContainsKey( cls ) ) {
+									string propnm = nm[nm.Length - 1];
+									if (consoleDebug)
+										Console.WriteLine("found handler property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
+									Formatter f = formatters[cls];
+									putPropValue( f, propnm, arr[1] );
+								}
+							} catch( Exception ex ) {
+								Console.WriteLine( "# ERROR # can't set property value: \""+line+"\": "+ex+"\n"+ex.StackTrace );
+							}
 						}
 					}
 				}

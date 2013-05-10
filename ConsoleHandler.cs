@@ -10,7 +10,7 @@ namespace NetLog.Logging
 	{
 		private bool consoleDebug;
 
-		public bool ConsoleDebug
+		public new bool ConsoleDebug
 		{
 			get { return consoleDebug; }
 			set { consoleDebug = value; }
