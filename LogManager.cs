@@ -16,9 +16,20 @@ namespace NetLog.Logging
 		private static Dictionary<string, Formatter> formatters = new Dictionary<string, Formatter>();
 		private static Dictionary<string, Level> levels = new Dictionary<string, Level>();
 		private static LogManager mgr;
+		private static bool primordialInit;
+		private static FileSystemWatcher fw;
 
 		private static Boolean configLoaded;
 		private bool consoleDebug;
+
+		static LogManager() {
+			string instName = System.Environment.GetEnvironmentVariable("netlog.logging.logmanager");
+			if( instName != null ) {
+				mgr = (LogManager)Activator.CreateInstance( Type.GetType( instName ) );
+			} else {
+				mgr = new LogManager();
+			}
+		}
 
 		public bool ConsoleDebug {
 			get { return consoleDebug; }
@@ -29,30 +40,93 @@ namespace NetLog.Logging
 			get { return loggers; }
 		}
 
+		private void OnChangedConfig ( object source, FileSystemEventArgs args ) {
+			if ( consoleDebug )
+				Console.WriteLine( "logging.properties file changed: " + args.FullPath );
+			lock ( loggers ) {
+				mgr.ReadConfiguration( );
+			}			
+		}
+
 		public void ReadConfiguration() {
+			string initName = System.Environment.GetEnvironmentVariable( "netlog.logging.config.class" );
+			string initAsmb = System.Environment.GetEnvironmentVariable( "netlog.logging.config.assembly" );
+			if ( initName != null ) {
+				if( primordialInit )
+					return;
+				primordialInit = true;
+				// Create an instance to allow initialization to run from its constructors actions.
+				try {
+					int idx = initName.LastIndexOf(".");
+					string assemb = initAsmb;
+					if( initAsmb == null )
+						assemb = initName.Substring(0,idx);
+					string name = initName.Substring( idx+1 );
+//					if( Type.GetType( initName ) != null ) {
+						Activator.CreateInstance( assemb, initName );
+						return;
+//					} else {
+//						Console.WriteLine( "# SEVERE # Error loading config initialization class, \""+initName+"\"" );
+//					}
+				} catch ( System.IO.FileNotFoundException ex ) {
+					Console.WriteLine( "# SEVERE # Error insantiating \"netlog.logging.config.class\" " +
+						"specified initialization class, \"" + initName + "\": " + ex );//+":\n"+ex.StackTrace	);
+					// Continue and do normal initialization.
+				} catch ( System.TypeLoadException ex ) {
+					Console.WriteLine("# SEVERE # Error insantiating \"netlog.logging.config.class\" "+
+						"specified initialization class, \""+initName+"\": "+ex );//+":\n"+ex.StackTrace	);
+					// Continue and do normal initialization.
+				}
+			}
+			String props = "N/A";
 			try
 			{
-				String props = System.Environment.GetEnvironmentVariable("netlog.logging.properties");
+				props = System.Environment.GetEnvironmentVariable("netlog.logging.config.file");
 				if( props == null )
 					props = "logging.properties";
+				if( fw != null ) {
+					if ( consoleDebug )
+						Console.WriteLine( "Dropping existing watcher for: " + fw.Path );
+					fw.EnableRaisingEvents = false;
+				}
+				fw = new FileSystemWatcher();
+				fw.Path = new FileInfo(props).DirectoryName;
+				fw.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
+				fw.Changed += new FileSystemEventHandler(OnChangedConfig);
+				fw.Filter = new FileInfo( props ).Name;
+				fw.EnableRaisingEvents = true;
 				if( new FileInfo( props ).Exists == false ) {
 					if( consoleDebug ) {
 						Console.WriteLine("The designated properties file: "+props+" does not exist" );
 					}
 					return;
 				}
-				using ( StreamReader sr = new StreamReader( props ) )
-				{
+				Exception ex = null;
+				bool readIt = false;
+				for( int i = 0; i < 3; ++i ) {
 					try {
-						configLoaded = true;
-						readStream(sr);
-					} finally {
-						sr.Close();
+						StreamReader sr = new StreamReader( props );
+						try {
+							configLoaded = true;
+							readStream(sr);
+							readIt = true;
+						} finally {
+							sr.Close();
+						}
+					} catch (Exception e) {
+						configLoaded = false;
+						if( ex == null )
+							ex = e;
 					}
+				}
+				if( !readIt ) {
+					configLoaded = false;
+					Console.WriteLine( "The Logging properties file, \"" + props + "\", could not be read!" );
+					Console.WriteLine( "# SEVERE # " + ex.Message + ": " + ex.StackTrace );
 				}
 			} catch (Exception e) {
 				configLoaded = false;
-				Console.WriteLine("The Logging properties file could not be read:");
+				Console.WriteLine("The Logging properties file, \""+props+"\", could not be read!");
 				Console.WriteLine("# SEVERE # "+e.Message+": "+e.StackTrace);
 			}			
 		}
@@ -68,29 +142,54 @@ namespace NetLog.Logging
 				while( ( line = rd.ReadLine() ) != null ) {
 					int idx;
 					if( line.StartsWith("handlers=" ) ) {
+						Dictionary<string, Handler> oh = new Dictionary<string, Handler>();
 						string[]arr = line.Substring( "handlers=".Length ).Split( new char[]{','} ) ;
 						if( arr.Count() > 0 )
 							Logger.getLogger("").GetHandlers().Clear();
 						foreach( string cls in arr ) {
 							Handler h;
-							try {
-								h = (Handler)Activator.CreateInstance( Type.GetType(cls) );
-							} catch( Exception ex ) {
-								Console.WriteLine( "# ERROR # Error creating handler \""+cls+"\": "+ex.Message+"\n"+ex.Source+": "+ex.StackTrace );
-								continue;
+							if( handlers.ContainsKey( cls ) == false ) {
+								try {
+									h = (Handler)Activator.CreateInstance( Type.GetType(cls) );
+								} catch( Exception ex ) {
+									Console.WriteLine( "# ERROR # Error creating handler \""+cls+"\": "+ex.Message+"\n"+ex.Source+": "+ex.StackTrace );
+									continue;
+								}
+								if( h == null ) {
+									Console.WriteLine("Can't load Handler class: "+cls );
+									continue;
+								}
+								handlers[cls] = h;
+							} else {
+								h = handlers[cls];
 							}
-							if( h == null ) {
-								Console.WriteLine("Can't load Handler class: "+cls );
-								continue;
-							}
-							handlers[cls] = h;
-							if( consoleDebug )
-								Console.WriteLine("adding handler: "+cls );
-							Logger.getLogger("").GetHandlers().Add( h );
+							if ( consoleDebug )
+								Console.WriteLine( "adding handler: " + cls );
+							Logger.getLogger( "" ).GetHandlers( ).Add( h );
+							// rememeber which handlers are in the root logger.
+							oh[cls] = h;
 						}
+						// remove any handlers no longer listed.
+						if ( consoleDebug )
+							Console.WriteLine( "root handlers: " + Logger.getLogger( "" ).GetHandlers( ).Count );
+						foreach( Handler hh in new List<Handler>( Logger.getLogger("").GetHandlers() ) ) {
+							if ( consoleDebug )
+								Console.WriteLine( "Checking if using handler: \"" + hh.GetType( ).FullName + "\": " + oh );
+							if ( oh.ContainsKey( hh.GetType( ).FullName ) == false ) {
+								Logger.getLogger("").RemoveHandler( hh );
+								if ( consoleDebug )
+									Console.WriteLine( "Removing no longer used handler: \"" + hh.GetType( ).FullName + "\"" );
+							}
+						}
+
+						// makes sure that at least a console handler is active if nothing else.
 						if( Logger.getLogger("").GetHandlers().Count == 0 ) {
 							// put back a console handler if the handlers could not be loaded
-							Logger.getLogger("").AddHandler( new ConsoleHandler() );
+							Handler h = new ConsoleHandler();
+							if ( handlers.ContainsKey( h.GetType( ).FullName ) == false ) {
+								handlers[h.GetType( ).FullName] = h;
+							}
+							Logger.getLogger("").AddHandler( h );
 						}
 						if (consoleDebug)
 							Console.WriteLine("handlers now (" + Logger.getLogger("").GetHandlers().Count + ") :" + Logger.getLogger("").GetHandlers()[0]);
@@ -186,7 +285,7 @@ namespace NetLog.Logging
 			}
 		}
 
-		private void putPropValue(object obj, string propnm, string value)
+		protected void putPropValue(object obj, string propnm, string value)
 		{
 			Type type = obj.GetType();
 			PropertyInfo propInfo = type.GetProperty(propnm);
@@ -219,9 +318,9 @@ namespace NetLog.Logging
 
 		public static LogManager GetLogManager() {
 			lock( loggers ) {
-				if( mgr == null ) {
+				if ( mgr == null ) {
 					mgr = new LogManager();
-					mgr.ReadConfiguration();
+					mgr.ReadConfiguration( );
 				}
 				return mgr;
 			}

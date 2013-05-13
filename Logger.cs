@@ -28,8 +28,13 @@ namespace NetLog.Logging
 
 		public static Logger getLogger( String name ) {
 			Logger l;
+			// Have to do this up front because it may create logging instances
+			// to preset levels when logging.properties has such content, and so
+			// we want to find those logger instances, instead of creating them here,
+			// and then not seeing those instances if we do things out of order.
+			LogManager lm = LogManager.GetLogManager( );
 			if ( consoleDebug )
-				Console.WriteLine("Get logger \"" + name + "\"");
+				Console.WriteLine( "Get logger \"" + name + "\": have? " + ( LogManager.Loggers.ContainsKey( name ) ? ( "YES, Level: " + LogManager.Loggers[name].Level ) : "NO" ) );
 			lock( LogManager.Loggers ) {
 				if( LogManager.Loggers.ContainsKey( name ) == false ) {
 					l = new Logger( name );
@@ -39,9 +44,9 @@ namespace NetLog.Logging
 						l.handlers.Add( h );
 						if( h.Formatter == null )
 							h.Formatter = new StreamFormatter();
-						l.level = Level.INFO;
 					}
-					LogManager.GetLogManager().AddLogger(l);
+					l.level = Level.INFO;
+					lm.AddLogger( l );
 				} else {
 					l = LogManager.Loggers[name];
 				}
@@ -65,19 +70,25 @@ namespace NetLog.Logging
 		}
 
 		public Level Level {
-			set { this.level = value; }
+			set { 
+				this.level = value;
+				if ( consoleDebug )
+					Console.WriteLine( Name + " level now " + value );
+			}
 			get { 
 				Level l = this.level;
+#if false
 				Logger lg = this;
-				while( l == null && lg != null ) {
-					if (consoleDebug)
-						Console.WriteLine("logger: " + lg.Name + ", level: " + (l == null ? "null" : l.ToString()));
+				while ( l == null && lg != null ) {
+					if ( consoleDebug )
+						Console.WriteLine( "logger: " + lg.Name + ", level: " + ( l == null ? "null" : l.ToString( ) ) );
 					lg = lg.Parent;
-					if( lg != null )
+					if ( lg != null )
 						l = lg.level;
 				}
-				if (consoleDebug)
-					Console.WriteLine("logger: " + lg.Name + ", level: " + (l == null ? "null" : l.ToString()));
+				if ( consoleDebug )
+					Console.WriteLine( "logger: " + lg.Name + ", level: " + ( l == null ? "null" : l.ToString( ) ) ); 
+#endif
 				return l == null ? Level.ALL : l;
 			}
 		}
@@ -382,13 +393,14 @@ namespace NetLog.Logging
 			{
 				return;
 			}
+			if ( consoleDebug )
+				Console.WriteLine( "record level " + rec.Level + ", logger level: " + this.Level + ", logging" );
 			rec.LoggerName = name;
 			Logger logger = this;
 			while( logger != null ) {
 				if (consoleDebug)
 					Console.WriteLine("\"" + Name + "\" handlers: " + handlers.Count);
-				foreach (Handler h in logger.GetHandlers())
-				{
+				foreach (Handler h in new List<Handler>( logger.GetHandlers( ) ) ) {
 					h.Publish( rec );
 				}
 				if( UseParentHandlers == false )

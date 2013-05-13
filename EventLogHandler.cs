@@ -46,6 +46,7 @@ namespace NetLog.Logging {
 				elog = new EventLog( LogName, MachineName, Source );
 			}
 		}
+
 		public string LogName {
 			get { return logName; }
 			set { 
@@ -53,6 +54,7 @@ namespace NetLog.Logging {
 				elog = new EventLog( LogName, MachineName, Source );
 			}
 		}
+
 		public override void Flush ( ) { }
 		public override void Close() {}
 		public override void Publish( LogRecord record ) {
