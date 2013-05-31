@@ -9,7 +9,7 @@ namespace NetLog.Logging
 {
 	public class FileHandler : Handler
 	{
-		private Logger log = Logger.getLogger("Seqtech.Logging.FileHandler");
+		private Logger log = Logger.GetLogger("Seqtech.Logging.FileHandler");
 		private StreamWriter outf;
 		private long len, limit;
 		private int gens;

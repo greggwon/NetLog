@@ -63,7 +63,7 @@ namespace NetLog.Logging
 						assemb = initName.Substring(0,idx);
 					string name = initName.Substring( idx+1 );
 //					if( Type.GetType( initName ) != null ) {
-						Activator.CreateInstance( assemb, initName );
+						Activator.CreateInstance( assemb, initName ).Unwrap();
 						return;
 //					} else {
 //						Console.WriteLine( "# SEVERE # Error loading config initialization class, \""+initName+"\"" );
@@ -145,7 +145,7 @@ namespace NetLog.Logging
 						Dictionary<string, Handler> oh = new Dictionary<string, Handler>();
 						string[]arr = line.Substring( "handlers=".Length ).Split( new char[]{','} ) ;
 						if( arr.Count() > 0 )
-							Logger.getLogger("").GetHandlers().Clear();
+							Logger.GetLogger("").GetHandlers().Clear();
 						foreach( string cls in arr ) {
 							Handler h;
 							if( handlers.ContainsKey( cls ) == false ) {
@@ -165,34 +165,34 @@ namespace NetLog.Logging
 							}
 							if ( consoleDebug )
 								Console.WriteLine( "adding handler: " + cls );
-							Logger.getLogger( "" ).GetHandlers( ).Add( h );
+							Logger.GetLogger( "" ).GetHandlers( ).Add( h );
 							// rememeber which handlers are in the root logger.
 							oh[cls] = h;
 						}
 						// remove any handlers no longer listed.
 						if ( consoleDebug )
-							Console.WriteLine( "root handlers: " + Logger.getLogger( "" ).GetHandlers( ).Count );
-						foreach( Handler hh in new List<Handler>( Logger.getLogger("").GetHandlers() ) ) {
+							Console.WriteLine( "root handlers: " + Logger.GetLogger( "" ).GetHandlers( ).Count );
+						foreach( Handler hh in new List<Handler>( Logger.GetLogger("").GetHandlers() ) ) {
 							if ( consoleDebug )
 								Console.WriteLine( "Checking if using handler: \"" + hh.GetType( ).FullName + "\": " + oh );
 							if ( oh.ContainsKey( hh.GetType( ).FullName ) == false ) {
-								Logger.getLogger("").RemoveHandler( hh );
+								Logger.GetLogger("").RemoveHandler( hh );
 								if ( consoleDebug )
 									Console.WriteLine( "Removing no longer used handler: \"" + hh.GetType( ).FullName + "\"" );
 							}
 						}
 
 						// makes sure that at least a console handler is active if nothing else.
-						if( Logger.getLogger("").GetHandlers().Count == 0 ) {
+						if( Logger.GetLogger("").GetHandlers().Count == 0 ) {
 							// put back a console handler if the handlers could not be loaded
 							Handler h = new ConsoleHandler();
 							if ( handlers.ContainsKey( h.GetType( ).FullName ) == false ) {
 								handlers[h.GetType( ).FullName] = h;
 							}
-							Logger.getLogger("").AddHandler( h );
+							Logger.GetLogger("").AddHandler( h );
 						}
 						if (consoleDebug)
-							Console.WriteLine("handlers now (" + Logger.getLogger("").GetHandlers().Count + ") :" + Logger.getLogger("").GetHandlers()[0]);
+							Console.WriteLine("handlers now (" + Logger.GetLogger("").GetHandlers().Count + ") :" + Logger.GetLogger("").GetHandlers()[0]);
 					} else if( ( idx = line.IndexOf(".formatter=" ) ) >= 0 ) {
 						String handler = line.Substring( 0, idx );
 						string[]arr = line.Substring( idx + ".formatter=".Length ).Split( new char[]{','} ) ;
@@ -236,7 +236,7 @@ namespace NetLog.Logging
 						if( handlers.ContainsKey( name ) ) {
 							handlers[name].Level = l;
 						} else {
-							Logger.getLogger( name ).Level = l;
+							Logger.GetLogger( name ).Level = l;
 						}
 					} else {
 						string[]arr = line.Split(new char[]{ '=' } );

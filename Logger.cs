@@ -26,7 +26,11 @@ namespace NetLog.Logging
 			set { consoleDebug = value; }
 		}
 
-		public static Logger getLogger( String name ) {
+		public static Logger GetLogger ( object obj ) {
+			return GetLogger( obj.GetType().FullName );
+		}
+
+		public static Logger GetLogger( String name ) {
 			Logger l;
 			// Have to do this up front because it may create logging instances
 			// to preset levels when logging.properties has such content, and so
@@ -106,7 +110,7 @@ namespace NetLog.Logging
 						ln = ln + "." + arr[i];
 					}
 				}
-				return Logger.getLogger(ln);
+				return Logger.GetLogger(ln);
 			}
 		}
 

@@ -11,10 +11,10 @@ namespace NetLog.test
 	public class LogTest
 	{
 		public static void Main() {
-			Logger log = Logger.getLogger( "NetLog.test.LogText" );
+			Logger log = Logger.GetLogger( "NetLog.test.LogText" );
 			log.Level = Level.ALL;
-			Logger.getLogger("").GetHandlers()[0].Formatter = new StreamFormatter();
-			Logger.getLogger("").GetHandlers()[0].Level = Level.ALL;
+			Logger.GetLogger("").GetHandlers()[0].Formatter = new StreamFormatter();
+			Logger.GetLogger("").GetHandlers()[0].Level = Level.ALL;
 
 			log.fine( "log message" );
 			log.fine( "log message {0}", "with parameters" );
