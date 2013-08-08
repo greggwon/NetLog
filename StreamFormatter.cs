@@ -48,7 +48,7 @@ namespace NetLog.Logging
 
 		public bool WithClass {
 			get { return withClasses; }
-			set { withClasses = WithClass; }
+			set { withClasses = value; }
 		}
 		public bool WithMethod {
 			get { return withMethods; }

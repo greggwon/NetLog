@@ -37,7 +37,13 @@
     <AssemblyOriginatorKeyFile>NetLog.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="RabbitMQ.Client, Version=3.1.3.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\RabbitMQ\DotNetClient\bin\RabbitMQ.Client.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
+    <Reference Include="System.configuration" />
+    <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -46,6 +52,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configuration.cs" />
     <Compile Include="ConsoleHandler.cs" />
     <Compile Include="EventLogFormatter.cs" />
     <Compile Include="EventLogHandler.cs" />
@@ -61,6 +68,7 @@
     <Compile Include="LogRecord.cs" />
     <Compile Include="LogTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TCPSocketHandler.cs" />
     <Compile Include="RotatingFileHandler.cs" />
     <Compile Include="StreamFormatter.cs" />
   </ItemGroup>
@@ -68,6 +76,7 @@
     <Content Include="README.txt" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="example.log.config" />
     <None Include="NetLog.snk" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

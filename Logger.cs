@@ -144,16 +144,16 @@ namespace NetLog.Logging
 		public void finest ( string msg, Exception ex ) {
 			log( Level.FINEST, msg, ex );
 		}
-		public void finest ( string msg, Exception ex, object param ) {
-			log( Level.FINEST, msg, ex, param );
-		}
-		public void finest ( string msg, Exception ex, object[ ] parms ) {
+		//public void finest ( string msg, Exception ex, object param ) {
+		//	log( Level.FINEST, msg, ex, param );
+		//}
+		public void finest ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.FINEST, msg, ex, parms );
 		}
-		public void finest ( string msg, object param ) {
-			log( Level.FINEST, msg, param );
-		}
-		public void finest ( string msg, object[] parms ) {
+		//public void finest ( string msg, object param ) {
+		//	log( Level.FINEST, msg, param );
+		//}
+		public void finest ( string msg, params object[] parms ) {
 			log( Level.FINEST, msg, parms );
 		}
 
@@ -166,35 +166,46 @@ namespace NetLog.Logging
 		public void finer ( string msg, Exception ex ) {
 			log( Level.FINER, msg, ex );
 		}
-		public void finer ( string msg, Exception ex, object param ) {
-			log( Level.FINER, msg, ex, param );
-		}
-		public void finer ( string msg, Exception ex, object[ ] parms ) {
+		//public void finer ( string msg, Exception ex, object param ) {
+		//	log( Level.FINER, msg, ex, param );
+		//}
+		public void finer ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.FINER, msg, ex, parms );
 		}
-		public void finer ( string msg, object param ) {
-			log( Level.FINER, msg, param );
-		}
-		public void finer ( string msg, object[ ] parms ) {
+		//public void finer ( string msg, object param ) {
+		//	log( Level.FINER, msg, param );
+		//}
+		public void finer ( string msg, params object[ ] parms ) {
 			log( Level.FINER, msg, parms );
 		}
 
-		public void entering(string sourceClass, string sourceMethod)
-		{
+		public void entering( Type sourceClass, object sourceMethod ) {
+			entering(sourceClass.FullName, sourceMethod.ToString());
+		}
+
+		//public void entering( Type sourceClass, object sourceMethod, object param ) {
+		//	entering(sourceClass.FullName, sourceMethod.ToString(), param);
+		//}
+
+		public void entering( Type sourceClass, object sourceMethod, params object[] param ) {
+			entering(sourceClass.FullName, sourceMethod.ToString(), param);
+		}
+
+		public void entering( string sourceClass, string sourceMethod ) {
 			LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
 			rec.SourceClassName = sourceClass;
 			rec.SourceMethodName = sourceMethod;
 			log(rec);
 		}
-		public void entering(string sourceClass, string sourceMethod, object param)
-		{
-			LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
-			rec.SourceClassName = sourceClass;
-			rec.SourceMethodName = sourceMethod;
-			rec.Parameters = new object[] { param };
-			log(rec);
-		}
-		public void entering(string sourceClass, string sourceMethod, object[] param)
+		//public void entering(string sourceClass, string sourceMethod, object param)
+		//{
+		//	LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
+		//	rec.SourceClassName = sourceClass;
+		//	rec.SourceMethodName = sourceMethod;
+		//	rec.Parameters = new object[] { param };
+		//	log(rec);
+		//}
+		public void entering(string sourceClass, string sourceMethod, params object[] param)
 		{
 			LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
 			rec.SourceClassName = sourceClass;
@@ -209,15 +220,15 @@ namespace NetLog.Logging
 			rec.SourceMethodName = sourceMethod;
 			log(rec);
 		}
-		public void exiting(string sourceClass, string sourceMethod, object param)
-		{
-			LogRecord rec = new LogRecord(Level.FINER, "EXIT");
-			rec.SourceClassName = sourceClass;
-			rec.SourceMethodName = sourceMethod;
-			rec.Parameters = new object[] { param };
-			log(rec);
-		}
-		public void exiting(string sourceClass, string sourceMethod, object[] param)
+		//public void exiting(string sourceClass, string sourceMethod, object param)
+		//{
+		//	LogRecord rec = new LogRecord(Level.FINER, "EXIT");
+		//	rec.SourceClassName = sourceClass;
+		//	rec.SourceMethodName = sourceMethod;
+		//	rec.Parameters = new object[] { param };
+		//	log(rec);
+		//}
+		public void exiting(string sourceClass, string sourceMethod, params object[] param)
 		{
 			LogRecord rec = new LogRecord(Level.FINER, "EXIT");
 			rec.SourceClassName = sourceClass;
@@ -243,18 +254,18 @@ namespace NetLog.Logging
 		public void fine ( string msg, Exception ex ) {
 			log( Level.FINE, msg, ex );
 		}
-		public void fine ( string msg, Exception ex, object param ) {
-			log( Level.FINE, msg, ex, param );
+		//public void fine ( string msg, Exception ex, object param ) {
+		//	log( Level.FINE, msg, ex, param );
+		//}
+		public void fine( string msg, params object[] parms ) {
+			log(Level.FINE, msg, parms);
 		}
-		public void fine ( string msg, Exception ex, object[ ] parms ) {
+		public void fine( string msg, Exception ex, params object[] parms ) {
 			log( Level.FINE, msg, ex, parms );
 		}
-		public void fine ( string msg, object param ) {
-			log( Level.FINE, msg, param );
-		}
-		public void fine ( string msg, object[ ] parms ) {
-			log( Level.FINE, msg, parms );
-		}
+		//public void fine ( string msg, object param ) {
+		//	log( Level.FINE, msg, param );
+		//}
 
 		public void config ( Exception ex ) {
 			log( Level.CONFIG, ex );
@@ -265,16 +276,16 @@ namespace NetLog.Logging
 		public void config ( string msg, Exception ex ) {
 			log( Level.CONFIG, msg, ex );
 		}
-		public void config ( string msg, Exception ex, object param ) {
-			log( Level.CONFIG, msg, ex, param );
-		}
-		public void config ( string msg, Exception ex, object[ ] parms ) {
+		//public void config ( string msg, Exception ex, object param ) {
+		//	log( Level.CONFIG, msg, ex, param );
+		//}
+		public void config ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.CONFIG, msg, ex, parms );
 		}
-		public void config ( string msg, object param ) {
-			log( Level.CONFIG, msg, param );
-		}
-		public void config ( string msg, object[ ] parms ) {
+		//public void config ( string msg, object param ) {
+		//	log( Level.CONFIG, msg, param );
+		//}
+		public void config ( string msg, params object[ ] parms ) {
 			log( Level.CONFIG, msg, parms );
 		}
 
@@ -287,16 +298,16 @@ namespace NetLog.Logging
 		public void info ( string msg, Exception ex ) {
 			log( Level.INFO, msg, ex );
 		}
-		public void info ( string msg, Exception ex, object param ) {
-			log( Level.INFO, msg, ex, param );
-		}
-		public void info ( string msg, Exception ex, object[ ] parms ) {
+		//public void info ( string msg, Exception ex, object param ) {
+		//	log( Level.INFO, msg, ex, param );
+		//}
+		public void info ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.INFO, msg, ex, parms );
 		}
-		public void info ( string msg, object param ) {
-			log( Level.INFO, msg, param );
-		}
-		public void info ( string msg, object[ ] parms ) {
+		//public void info ( string msg, object param ) {
+		//	log( Level.INFO, msg, param );
+		//}
+		public void info ( string msg, params object[ ] parms ) {
 			log( Level.INFO, msg, parms );
 		}
 
@@ -309,16 +320,16 @@ namespace NetLog.Logging
 		public void warning ( string msg, Exception ex ) {
 			log( Level.WARNING, msg, ex );
 		}
-		public void warning ( string msg, Exception ex, object param ) {
-			log( Level.WARNING, msg, ex, param );
-		}
-		public void warning ( string msg, Exception ex, object[ ] parms ) {
+		//public void warning ( string msg, Exception ex, object param ) {
+		//	log( Level.WARNING, msg, ex, param );
+		//}
+		public void warning ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.WARNING, msg, ex, parms );
 		}
-		public void warning ( string msg, object param ) {
-			log( Level.WARNING, msg, param );
-		}
-		public void warning ( string msg, object[ ] parms ) {
+		//public void warning ( string msg, object param ) {
+		//	log( Level.WARNING, msg, param );
+		//}
+		public void warning ( string msg, params object[ ] parms ) {
 			log( Level.WARNING, msg, parms );
 		}
 
@@ -331,16 +342,16 @@ namespace NetLog.Logging
 		public void severe ( string msg, Exception ex ) {
 			log( Level.SEVERE, msg, ex );
 		}
-		public void severe ( string msg, Exception ex, object param ) {
-			log( Level.SEVERE, msg, ex, param );
-		}
-		public void severe ( string msg, Exception ex, object[ ] parms ) {
+		//public void severe ( string msg, Exception ex, object param ) {
+		//	log( Level.SEVERE, msg, ex, param );
+		//}
+		public void severe ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.SEVERE, msg, ex, parms );
 		}
-		public void severe ( string msg, object param ) {
-			log( Level.SEVERE, msg, param );
-		}
-		public void severe ( string msg, object[ ] parms ) {
+		//public void severe ( string msg, object param ) {
+		//	log( Level.SEVERE, msg, param );
+		//}
+		public void severe ( string msg, params object[ ] parms ) {
 			log( Level.SEVERE, msg, parms );
 		}
 
@@ -359,27 +370,27 @@ namespace NetLog.Logging
 			rec.Thrown = ex;
 			log( rec );
 		}
-		public void log ( Level level, string msg, object param ) {
-			LogRecord rec = new LogRecord( level, msg );
-			rec.Parameters = new object[] { param };
-			log( rec );
-		}
+		//public void log ( Level level, string msg, object param ) {
+		//	LogRecord rec = new LogRecord( level, msg );
+		//	rec.Parameters = new object[] { param };
+		//	log( rec );
+		//}
 
-		public void log ( Level level, string msg, Exception ex, object[ ] parms ) {
-			LogRecord rec = new LogRecord( level, ex.ToString( ) );
+		public void log ( Level level, string msg, Exception ex, params object[ ] parms ) {
+			LogRecord rec = new LogRecord( level, msg );
 			rec.Parameters = parms;
 			rec.Thrown = ex;
 			log( rec );
 		}
 
-		public void log ( Level level, string msg, Exception ex, object parm ) {
-			LogRecord rec = new LogRecord( level, ex.ToString( ) );
-			rec.Parameters = new object[]{ parm };
-			rec.Thrown = ex;
-			log( rec );
-		}
+		//public void log ( Level level, string msg, Exception ex, object parm ) {
+		//	LogRecord rec = new LogRecord( level, msg );
+		//	rec.Parameters = new object[]{ parm };
+		//	rec.Thrown = ex;
+		//	log( rec );
+		//}
 
-		public void log ( Level level, string msg, object[ ] parms )
+		public void log ( Level level, string msg, params object[ ] parms )
 		{
 			LogRecord rec = new LogRecord( level, msg );
 			rec.Parameters = parms;

@@ -9,12 +9,13 @@ namespace NetLog.Logging
 {
 	public class FileHandler : Handler
 	{
-		private Logger log = Logger.GetLogger("Seqtech.Logging.FileHandler");
+//		private Logger log = Logger.GetLogger("NetLog.Logging.FileHandler");
 		private StreamWriter outf;
 		private long len, limit;
 		private int gens;
 		protected FileInfo finfo;
 		private string name;
+		private bool firstStart = false;
 		private bool asyncFlush = true;
 		private bool consoleDebug;
 
@@ -81,7 +82,12 @@ namespace NetLog.Logging
 			set {
 				if( this.name != null && this.name.Equals( value ) )
 					return;
-				this.name = value;
+				if( value.StartsWith("/") || value.StartsWith("\\") || value[ 1 ] == ':' ) {
+					this.name = value;
+				} else {
+					// add the current directory path
+					this.name = Path.Combine(Directory.GetCurrentDirectory(), value);
+				}
 				lock( this ) {
 					Close();
 					outf = baseFileOpen( true );
@@ -98,7 +104,7 @@ namespace NetLog.Logging
 		public FileHandler( string name, int generations, long size ) {
 			limit = size;
 			gens = generations;
-			this.name = name;
+			Name = name;
 			FileInfo f = new FileInfo( baseFileName( name ) );
 			len = 0;
 			if( f.Exists )
@@ -116,6 +122,7 @@ namespace NetLog.Logging
 		public FileHandler() {
 			Formatter = new StreamFormatter( false, true, false );
 			Generations = 1;
+			Name = "logging.out";
 			limit = 20 * 1024 * 1024;
 		}
 
@@ -125,21 +132,26 @@ namespace NetLog.Logging
 			{
 				string f1 = this.name+"."+i;
 				FileInfo f2 = new FileInfo( this.name+"."+(i-1) );
+				FileInfo fi = new FileInfo(f1);
 				try {
-				    if( f2.Exists ) {
+				    if( f2.Exists && f2.Length > 0 ) {
 						if( consoleDebug )
 							Console.WriteLine("replace "+f1+" with "+f2 );
+						// truncate f1 and/or make it exist so we can replace to it.
 						File.Create( f1 ).Close();
+						// Copy i-1 file to i file, removing i-1 file.
 						f2.Replace( f1, t1 );
 						if (consoleDebug)
 							Console.WriteLine("f1 exists: " + new FileInfo(f1).Exists + ", f2 exists: " + f2.Exists);
 					} else {
 						if (consoleDebug)
 							Console.WriteLine("there is no " + f2 + " skipping rename");
+						if( fi.Exists && fi.Length > 0 )
+							fi.Delete();
 					}
 				} catch( Exception ex ) {
-					log.log( Level.SEVERE, ex );
-//					Console.WriteLine( "Exception rotating files: "+ex.Message+"\n"+ex.StackTrace );
+//					log.log( Level.SEVERE, ex );
+					Console.WriteLine( "# SEVERE # Exception rotating files: " + ex.Message + "\n" + ex.StackTrace );
 				}
 			}
 			if( new FileInfo(t1).Exists )
@@ -168,6 +180,16 @@ namespace NetLog.Logging
 		}
 
 		public override void Publish( LogRecord rec ) {
+			if( !firstStart ) {
+				lock( this ) {
+					if( !firstStart ) {
+						Close();
+						shuffleDown();
+						outf = baseFileOpen(false);
+						firstStart = true;
+					}
+				}
+			}
 			Enqueue( rec );
 		}
 
@@ -177,7 +199,7 @@ namespace NetLog.Logging
 		}
 
 		protected virtual bool CheckNewFile() {
-			return( outf != null && new FileInfo( name+".0" ).Length > limit );
+			return( outf == null || new FileInfo( name+".0" ).Length > limit );
 		}
 
 		/// <summary>

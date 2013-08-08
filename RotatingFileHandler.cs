@@ -57,7 +57,7 @@ namespace NetLog.Logging {
 					finfo = new FileInfo( nm );
 				} catch ( IOException ex ) {
 
-					Console.WriteLine( "Error opening log file (name=\"" + rname + "\") for writing: " + ex.Message + "\n" + ex.StackTrace );
+					Console.WriteLine( "# SEVERE # Error opening log file (name=\"" + rname + "\") for writing: " + ex.Message + "\n" + ex.StackTrace );
 					rname = Filename + "-" + cnt++;
 					Console.WriteLine( "Trying file: \"" + rname + "\" next" );
 				}

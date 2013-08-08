@@ -8,6 +8,9 @@ using System.Threading;
 
 namespace NetLog.Logging
 {
+	public class NetLog {
+		public const String SOURCE = "NetLog.Logging";
+	}
 	public abstract class Handler
 	{
 		private ErrorManager errorMgr;
@@ -38,7 +41,8 @@ namespace NetLog.Logging
 		}
 
 		public Handler() {
-			level = Level.INFO;
+			level = Level.ALL;
+			Formatter = new StreamFormatter(false, true, false);
 		}
 
 		protected long NextSequence {
@@ -78,7 +82,7 @@ namespace NetLog.Logging
 		 * at a time to be writing.  This can be called by "Flush" and "Close" implementations to
 		 * make sure that the queue is empty.  Returns false if there is still I/O being
 		 * done by another thread, true when the calling thread took the lock and completed
-		 * the loop, thus assuring the queue is empty.
+		 * the loop, thus assuring the queue was empty at that moment.
 		 */
 		protected bool processor() {
 			LogRecord rec;
@@ -131,35 +135,46 @@ namespace NetLog.Logging
 			return lockTaken;
 		}
 
-		/**
-		 * This can be overridden to see the moment that a thread empties
-		 * the logging queue.  Typically, this will be used to flush an output
-		 * stream to disk or otherwise make sure it is visible.
-		 */
-		protected virtual void PushBoundry() {}
+		/// <summary>
+		/// This can be overridden to see the moment that a thread empties the logging queue.  
+		/// Typically, this will be used to flush an output stream to disk or otherwise make 
+		/// sure it is visible.
+		/// </summary>
+		protected virtual void PushBoundry() { }
 
-		/**
-		 * The Publish(LogRecord) implementation needs to provide an implementation of
-		 * this method if Enqueue(LogRecord) is used.  Enqueue'ing threads, will call
-		 * this method to push data out for logging. Typically, the normal content of
-		 * Publish(LogRecord) would be in Push(LogRecord), and Publish(LogRecord) will
-		 * just call Enqueue(LogRecord).
-		 */
+		/// <summary>
+		/// The Publish(LogRecord) implementation needs to provide an implementation of
+		/// this method if Enqueue(LogRecord) is used.  Enqueue'ing threads, will call
+		/// this method to push data out for logging. Typically, the normal content of
+		/// Publish(LogRecord) would be in Push(LogRecord), and Publish(LogRecord) will
+		/// just call Enqueue(LogRecord).
+		/// </summary>
+		/// <param name="rec"></param>
 		protected virtual void Push( LogRecord rec ) {}
 
-		/**
-		 * This is the entry point for publishing records out from the Handler.  This
-		 * method, for a console logger, might just be 
-		 *
-		 *		"Console.Write( Formatter.format( record ) );
-		 *		
-		 * for a file logger, or some other destination which has latency and inherent
-		 * synchronization needs, Publish( LogRecord ) might choose to use the 
-		 * Enqueue/Push/PushBoundry mechanism to eliminate locking which would otherwise
-		 * be needed to keep multiple threads from mucking in the I/O structures simultaneously.
-		 */
+		/// <summary>
+		/// This is the entry point for publishing records out from the Handler.  
+		/// This method, for a console logger, might just be 
+		/// 		 
+		/// "Console.Write( Formatter.format( record ) );
+		/// 		 		
+		/// for a file logger, or some other destination which has latency and inherent
+		/// synchronization needs, Publish( LogRecord ) might choose to use the 
+		/// Enqueue/Push/PushBoundry mechanism to eliminate locking which would otherwise
+		/// be needed to keep multiple threads from mucking in the I/O structures simultaneously.
+		/// </summary>
+		/// <param name="record"></param>
 		public abstract void Publish( LogRecord record );
 
+		/// <summary>
+		/// Flush the output stream or other path to make sure records are delivered
+		/// </summary>
+		public abstract void Flush();
+
+		/// <summary>
+		/// Close down any outbound data paths
+		/// </summary>
+		public abstract void Close();
 
 		public ErrorManager getErrorManager() {
 			return errorMgr;
@@ -215,7 +230,5 @@ namespace NetLog.Logging
 			if( errorMgr != null )
 				errorMgr.reportError( msg, ex, code );
 		}
-		public abstract void Flush();
-		public abstract void Close();
 	}
 }
