@@ -16,12 +16,25 @@ namespace NetLog.Logging {
 		private int port;
 		private string addr;
 
-		public TCPSocketHandler() :base(){
-			PortNumber = 12314;
-			HostAddress = null;
+		public TCPSocketHandler( string host, int port )
+			: this(port) {
+			HostAddress = host;
 		}
 
+		public TCPSocketHandler( int port )
+			: this( port, true, true, false ) {
+		}
 
+		public TCPSocketHandler( int port, bool brief, bool withTime, bool truncatePackageNames )
+			: base() {
+			PortNumber = port;
+			HostAddress = null;
+			Formatter = new StreamFormatter(brief, withTime, truncatePackageNames );
+		}
+
+		public TCPSocketHandler()
+			: this(12314) {
+		}
 
 		/// <summary>
 		/// This can be overridden to see the moment that a thread empties the logging queue.  
@@ -96,7 +109,7 @@ namespace NetLog.Logging {
 						if( lm != null ) {
 							lm.Close();
 						}
-						listener = new ListenerManager();
+						listener = new ListenerManager(this);
 						listener.HostAddress = HostAddress;
 						listener.PortNumber = PortNumber;
 						listener.StartListening();
@@ -154,6 +167,7 @@ namespace NetLog.Logging {
 		private Socket listener;
 		internal List<Socket>handlers;
 		private bool stopping;
+		private TCPSocketHandler hand;
 
 		public void Dispose() {
 			Dispose(true);
@@ -165,9 +179,10 @@ namespace NetLog.Logging {
 				listener.Dispose();
 		}
 
-		public ListenerManager() {
+		public ListenerManager( TCPSocketHandler handler ) {
 			handlers = new List<Socket>();
 			stopping = false;
+			hand = handler;
 		}
 
 		private void acceptCallback( IAsyncResult ar ) {
@@ -176,9 +191,53 @@ namespace NetLog.Logging {
 			// Turn off Nagle to get data through on each log message.
 			handler.NoDelay = false;
 			lock( handlers ) {
+				//byte[] data = { 0xff, 253 , 0xff, 240 };
+				//handler.Send(data);
 				handlers.Add(handler);
+				WatchLevels(hand, handler);
 			}
 			allDone.Set();
+		}
+
+		internal void WatchLevels( TCPSocketHandler h, Socket handler ) {
+			Thread th = new Thread(new ThreadStart(() => {
+				h.Publish(new LogRecord(h.Level, "Processing telnet controls: "+handler));
+				int cnt;
+				byte[] data = new byte[10];
+				while( ( cnt = handler.Receive(data) ) > 0 ) {
+					if( data[ 0 ] == 0xff ) {
+						String str = "";
+						for( int i = 0; i < cnt; ++i ) {
+							if( i > 0 )
+								str += " ";
+							str += data[ i ].ToString("x02");
+						}
+						h.Publish(new LogRecord(h.Level, "Saw telnet control: " + str));
+						continue;
+					}
+					for( int i = 0; i < cnt; ++i ) {
+						Level l = h.Level;
+						if( l == Level.ALL )
+							l = Level.FINEST;
+						if( l.IntValue > Level.SEVERE.IntValue + 100 ) {
+							l = new Level("Level_" + ( Level.SEVERE.IntValue + 100 ), Level.SEVERE.IntValue + 100);
+						}
+						if( data[ i ] == '+' ) {
+							h.Level = new Level("Level_" + ( l.IntValue + 100 ), l.IntValue + 100);
+							h.Publish(new LogRecord(h.Level, "Log Level Changed to " + h.Level));
+							break;
+						} else if( data[ i ] == '=' ) {
+							h.Publish(new LogRecord(h.Level, "Log Level is Currently " + h.Level));
+						} else if( data[ i ] == '-' ) {
+							h.Level = new Level("Level_" + ( l.IntValue - 100 ), l.IntValue - 100);
+							h.Publish(new LogRecord(h.Level, "Log Level Changed to " + h.Level));
+							break;
+						}
+					}
+				}
+			}));
+			th.IsBackground = true;
+			th.Start();
 		}
 
 		AutoResetEvent allDone = new AutoResetEvent(false);

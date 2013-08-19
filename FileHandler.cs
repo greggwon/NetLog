@@ -114,14 +114,14 @@ namespace NetLog.Logging
 		}
 
 		public FileHandler(string name)
-			: this(name, 1, 20 * 1024 * 1024)
+			: this(name, 5, 20 * 1024 * 1024)
 		{
 			Formatter = new StreamFormatter( false, true, false );
 		}
 
 		public FileHandler() {
 			Formatter = new StreamFormatter( false, true, false );
-			Generations = 1;
+			Generations = 5;
 			Name = "logging.out";
 			limit = 20 * 1024 * 1024;
 		}

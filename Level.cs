@@ -16,8 +16,8 @@ namespace NetLog.Logging
 		public static Level FINE = new Level( "FINE", 500 );
 		public static Level CONFIG = new Level( "CONFIG", 700);
 		public static Level INFO = new Level(  "INFO", 800);
-		public static Level WARNING = new Level( "WARNING", 900 );
-		public static Level EVENTLOG = new Level( "EVENTLOG", 999 );
+		public static Level EVENTLOG = new Level("EVENTLOG", 899);
+		public static Level WARNING = new Level("WARNING", 900);
 		public static Level SEVERE = new Level( "SEVERE", 1000 );
 		public static Level OFF = new Level( "OFF", int.MaxValue );
 		public static Level ALL = new Level( "ALL", int.MinValue );
