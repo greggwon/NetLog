@@ -27,9 +27,10 @@ namespace NetLog.NetLogMonitor {
 		public MainWindow() {
 			log = Logger.GetLogger(GetType().FullName);
 			InitializeComponent();
+			textArea.Background = Brushes.LightGray;
 		}
 
-		bool cancelled;
+		private volatile bool cancelled;
 
 		private Dispatcher disp = Dispatcher.CurrentDispatcher;
 		private void Connect_Cancel( object sender, RoutedEventArgs e ) {
@@ -37,22 +38,16 @@ namespace NetLog.NetLogMonitor {
 			Connect.Click -= Connect_Click;
 			Connect.Click -= Connect_Cancel;
 			Connect.Click += Connect_Click;
+			textArea.Background = Brushes.LightGray;
 			Connect.IsEnabled = false;
+			try {
+				conn.Close();
+			} catch( Exception ex ) {
+				log.severe(ex);
+			}
 		}
 
 		private void Connect_Click( object sender, RoutedEventArgs e ) {
-			if( cancelled ) {
-				disp.Invoke(DispatcherPriority.Normal,
-					new Action(() => {
-						Connect.Content = "Connect";
-						Connect.Click -= Connect_Click;
-						Connect.Click -= Connect_Cancel;
-						Connect.Click += Connect_Click;
-						Connect.IsEnabled = true;
-						cancelled = false;
-					})
-				);
-			}
 			int port = 0;
 			cancelled = false;
 			disp.Invoke(DispatcherPriority.Normal,
@@ -62,6 +57,7 @@ namespace NetLog.NetLogMonitor {
 					Connect.Click -= Connect_Cancel;
 					Connect.Click += Connect_Cancel;
 					port = int.Parse(tcpPort.Text);
+					textArea.Background = Brushes.GreenYellow;
 				})
 			);
 
@@ -71,7 +67,7 @@ namespace NetLog.NetLogMonitor {
 				conn.BeginConnect("localhost", port, onConnect, conn);
 				disp.Invoke(DispatcherPriority.Normal,
 					new Action(() => {
-						textArea.AppendText(String.Format("\n------- Connected to localhost:{0} at {1}\n\n",
+						textArea.AppendText(String.Format("\n------- Connecting to localhost:{0} at {1}...",
 							port, DateTime.Now.ToLocalTime() ) );
 					}));
 			} catch( Exception ex ) {
@@ -92,27 +88,74 @@ namespace NetLog.NetLogMonitor {
 		}
 
 		private void onConnect( IAsyncResult ar ) {
-			log.info("Connected to " + conn);
-			disp.Invoke(DispatcherPriority.Normal,
-				new Action(() => {
-					Connect.Content = "Close";
-					Connect.Click -= Connect_Click;
-					Connect.Click -= Connect_Cancel;
-					Connect.Click += Connect_Cancel;
-				})
-			);
-			Thread th = new Thread(new ThreadStart(() => {
-				try {
-					log.fine("starting ReceiveData processing");
-					ReceiveData();
-				} catch( Exception ex ) {
-					conn.Close();
-					log.severe(ex);
+			if( !ar.IsCompleted ) {
+				log.info("AsyncResult is not completed");
+
+			}
+			if( !cancelled && conn.Connected ) {
+				log.info("Completed connection: {0}", conn.Connected );
+				disp.Invoke(DispatcherPriority.Normal,
+					new Action(() => {
+						textArea.AppendText(String.Format("Connected\n\n"));
+					}));
+				log.info("Connected to " + conn);
+				disp.Invoke(DispatcherPriority.Normal,
+					new Action(() => {
+						Connect.Content = "Close";
+						Connect.Click -= Connect_Click;
+						Connect.Click -= Connect_Cancel;
+						Connect.Click += Connect_Cancel;
+						textArea.Background = Brushes.White;
+					})
+				);
+				Thread th = new Thread(new ThreadStart(() => {
+					try {
+						log.fine("starting ReceiveData processing");
+						ReceiveData();
+					} catch( Exception ex ) {
+						conn.Close();
+						log.severe(ex);
+						if( !cancelled )
+							Connect_Click(null, null);
+					} finally {
+						disp.Invoke(DispatcherPriority.Normal,
+							new Action(() => {
+								Connect.IsEnabled = true;
+								Connect.Content = "Connect";
+								Connect.Click -= Connect_Click;
+								Connect.Click -= Connect_Cancel;
+								Connect.Click += Connect_Click;
+								textArea.Background = Brushes.LightGray;
+							})
+						);
+					}
+				}));
+				th.IsBackground = true;
+				th.Start();
+			} else {
+				disp.Invoke(DispatcherPriority.Normal,
+					new Action(() => {
+						textArea.AppendText(String.Format("Failed"));
+					}));
+				if( !cancelled ) {
+					try {
+						conn.Close();
+					} catch { }
 					Connect_Click(null, null);
+				} else {
+					disp.Invoke(DispatcherPriority.Normal,
+						new Action(() => {
+							Connect.Content = "Connect";
+							Connect.Click -= Connect_Click;
+							Connect.Click -= Connect_Cancel;
+							Connect.Click += Connect_Click;
+							Connect.IsEnabled = true;
+							cancelled = false;
+							textArea.Background = Brushes.LightGray;
+						})
+					);
 				}
-			}));
-			th.IsBackground = true;
-			th.Start();
+			}
 		}
 
 		private void ReceiveData() {
@@ -139,15 +182,7 @@ namespace NetLog.NetLogMonitor {
 					log.severe(ex);
 				}
 			}
-			disp.Invoke(DispatcherPriority.Normal,
-				new Action(() => {
-					Connect.IsEnabled = true;
-					Connect.Content = "Connect";
-					Connect.Click -= Connect_Click;
-					Connect.Click -= Connect_Cancel;
-					Connect.Click += Connect_Click;
-				})
-			);
+	
 		}
 
 		private void clearButton_Click( object sender, RoutedEventArgs e ) {
