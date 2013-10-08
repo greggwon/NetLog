@@ -13,11 +13,11 @@ namespace NetLog.Logging
 		private bool trunc = false;
 		private bool withClasses = true;
 		private bool withMethods = true;
-		private string eol = "\n\r";
 		private string fmt = "yyyy/MM/dd HH:mm:ss.fff", bfmt = "HH:mm:ss";
 
 		public StreamFormatter()
 		{
+			Eol = "\n\r";
 			Brief = false;
 			WithTime = true;
 			TruncatedPackageName = false;
@@ -26,7 +26,7 @@ namespace NetLog.Logging
 		/**
 		 * The default is false, true, false.
 		 */
-		public StreamFormatter( bool brief, bool withTime, bool truncPkgName )
+		public StreamFormatter( bool brief, bool withTime, bool truncPkgName ) : this()
 		{
 			Brief = brief;
 			WithTime = withTime;
@@ -116,14 +116,16 @@ namespace NetLog.Logging
 			}
 			b.Append( formatMessage( rec ) );
 			if( rec.Thrown != null ) {
-				b.Append( eol );
+				b.Append( Eol );
 				if ( rec.Thrown.StackTrace != null && rec.Thrown.StackTrace.Length > 0 )
 					b.Append( rec.Thrown.StackTrace );
 				else
 					b.Append( "*** No StackTrace Lines Present *** ");
 			}
-			b.Append( eol );
+			b.Append( Eol );
 			return b.ToString();
 		}
+
+		public string Eol { get; set; }
 	}
 }
