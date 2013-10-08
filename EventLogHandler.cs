@@ -39,9 +39,12 @@ namespace NetLog.Logging {
 					"for logging to NetLog.Logging.EventLog", ex );
 			}
 			string cmd = System.Environment.CommandLine;
+			// space separated command line, take first element?
 			string[]arr = cmd.Split(new char[]{ ' ' } );
+			// split path into components
 			arr = arr[0].Split(new char[] { '/','\\' } );
-			cmd = arr[arr.Length-1];
+			// Take last element of path
+			cmd = arr[ arr.Length - 1 ];
 
 			// use the last element of the directory path for the name by default.
 			FileInfo f = new FileInfo(System.Environment.CurrentDirectory);
@@ -74,7 +77,7 @@ namespace NetLog.Logging {
 		private void EstablishHandlerSource(string source) {
 			if( !System.Diagnostics.EventLog.SourceExists(source) ) {
 				System.Diagnostics.EventLog.CreateEventSource(
-					source, logName );
+					source, LogName);
 			}
 			elog = new EventLog(LogName, MachineName, source);
 		}
@@ -105,8 +108,8 @@ namespace NetLog.Logging {
 			set {
 				// always delete an existing source because it may be changing
 				try {
-					if( System.Diagnostics.EventLog.SourceExists(source) ) {
-						System.Diagnostics.EventLog.DeleteEventSource(source);
+					if( System.Diagnostics.EventLog.SourceExists(this.source) ) {
+						System.Diagnostics.EventLog.DeleteEventSource(this.source);
 					}
 					EstablishHandlerSource(value);
 					source = value;
