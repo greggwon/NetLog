@@ -15,6 +15,7 @@ namespace NetLog.Logging {
 		private bool listening;
 		private int port;
 		private string addr;
+		internal List<LogRecord>history = new List<LogRecord>();
 
 		public TCPSocketHandler( string host, int port )
 			: this(port) {
@@ -59,7 +60,15 @@ namespace NetLog.Logging {
 			}
 
 			rec.SequenceNumber = NextSequence;
-			String str = Formatter.format(rec) +"\r";
+			if( listener.handlers.Count == 0 ) {
+				lock( this ) {
+					history.Add(rec);
+					if( history.Count > 100 ) {
+						history.RemoveAt(0);
+					}
+				}
+			}
+			String str = Formatter.format(rec) + "\r";
 			try {
 				byte[] msg = System.Text.Encoding.UTF8.GetBytes(str);
 				lock( listener.handlers ) {
@@ -193,6 +202,20 @@ namespace NetLog.Logging {
 			lock( handlers ) {
 				//byte[] data = { 0xff, 253 , 0xff, 240 };
 				//handler.Send(data);
+				hand.Publish(new LogRecord(hand.Level, "have handlers: "+ handlers.Count));
+				if( handlers.Count == 0 ) {
+					hand.Publish(new LogRecord(hand.Level, "have history Records: " + hand.history.Count));
+					foreach( LogRecord rec in hand.history ) {
+						String str = hand.Formatter.format(rec) + "\r";
+						try {
+							byte[] msg = System.Text.Encoding.UTF8.GetBytes(str);
+							handler.Send(msg);
+						} catch( Exception ex ) {
+							LogManager.ReportExceptionToEventLog("Cannot write message to client "+handler+" : "+ex.Message,ex);
+							break;
+						}
+					}
+				}
 				handlers.Add(handler);
 				WatchLevels(hand, handler);
 			}
@@ -205,16 +228,17 @@ namespace NetLog.Logging {
 				int cnt;
 				byte[] data = new byte[10];
 				while( ( cnt = handler.Receive(data) ) > 0 ) {
+					String str = "";
+					for( int i = 0; i < cnt; ++i ) {
+						if( i > 0 )
+							str += " ";
+						str += data[ i ].ToString("x02");
+					}
 					if( data[ 0 ] == 0xff ) {
-						String str = "";
-						for( int i = 0; i < cnt; ++i ) {
-							if( i > 0 )
-								str += " ";
-							str += data[ i ].ToString("x02");
-						}
 						h.Publish(new LogRecord(h.Level, "Saw telnet control: " + str));
 						continue;
 					}
+					h.Publish(new LogRecord(h.Level, "Saw unexpected received data: " + str));
 					for( int i = 0; i < cnt; ++i ) {
 						Level l = h.Level;
 						if( l == Level.ALL )
