@@ -357,7 +357,7 @@ namespace NetLog.Logging
 
 
 		public void log ( Level level, Exception ex ) {
-			LogRecord rec = new LogRecord( level, ex.Message );
+			LogRecord rec = new LogRecord( level, ex.GetType().FullName+": "+ex.Message );
 			rec.Thrown = ex;
 			log( rec );
 		}
