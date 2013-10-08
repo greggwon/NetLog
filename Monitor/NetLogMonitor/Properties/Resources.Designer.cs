@@ -59,5 +59,14 @@ namespace NetLog.NetLogMonitor.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to icon.ico.
+        /// </summary>
+        internal static string iconFile {
+            get {
+                return ResourceManager.GetString("iconFile", resourceCulture);
+            }
+        }
     }
 }
