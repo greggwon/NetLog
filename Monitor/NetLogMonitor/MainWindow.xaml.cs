@@ -2,6 +2,7 @@
 using NetLog.Logging;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -27,6 +28,17 @@ namespace NetLog.NetLogMonitor {
 		public MainWindow() {
 			log = Logger.GetLogger(GetType().FullName);
 			InitializeComponent();
+			int defPort = 12314;
+			try {
+				string port = ConfigurationManager.AppSettings[ "portNumber" ];
+				if( port != null ) {
+					defPort = int.Parse(port);
+				}
+			} catch( Exception ex ) {
+				log.severe(ex);
+			}
+			tcpPort.Text = "" + defPort;
+			log.info("starting up");
 			textArea.Background = Brushes.LightGray;
 		}
 
