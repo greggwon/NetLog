@@ -1,0 +1,60 @@
+﻿This library was based off of David Hammerton's original ZeroconfNetServices.
+
+These are the big changes (made by Robbie Hanson of Deusty.com) from the original code release.
+
+I needed two major changes:
+
+1.) The ability to update TXT records after publishing.
+2.) The ability to monitor TXT records for updates.
+
+Here is how I went about making these changes:
+
+The first change was fairly straightforward.  I just needed to be able to call DNSServiceUpdateRecord and pass the updated txt record data.  So to do this I added the proper methods in mDNSImports, and created a setTXTRecordData method to match Apple's documentation.
+
+The second change was a little more challenging.  In order to monitor a TXT record for changes, we need a second sdRef/UnixSocket.  These are stored in DNSService, which both NetService and NetServiceBrowser inherit from.  So I altered the DNSService to maintain an unlimited amount of sdRef's/UnixSockets.  So now the SetupWatchSocket and TeardownWatchSocket methods both take an IntPtr sdRef as a parameter.
+
+Then I added the proper methods to mDNSImports, such as DNSServiceQueryRecord, etc.  And created proper StartMonitoring and StopMonitoring methods.
+
+Other changes, improvements, and bug fixes:
+
+I noticed that the ResolveWithTimeout didn't actually contain a timeout.  So I added timeout functionallity.
+
+While I was studying the mDNSImports file, I kept going back to read Apple's documentation in their header files.  So I ended up copying and pasting a large amount of their comments into mDNSImports.
+
+While I was testing I noticed that resolve operations took a long time.  I only noticed this because I had my Mac sitting right there resolving the same services, and it was doing it something like 3 to 4 times as fast.  Researching this problem, I stumbled upon the following post from Apple explaining the problem, and a solution:
+http://lists.apple.com/archives/Bonjour-dev/2006/Jan/msg00008.html
+
+So according to Apple, the solution is to use DNSServiceQueryRecord.  This required another sdRef/UnixSocket.  Which wasn't a problem, since I'd already configured DNSService to maintain multiples.  So I altered the post resolve IP lookup stuff, and now it works just as fast as on Mac!
+
+In the original code, in NetService.Stop() there was:
+/* FIXME: do i need to stop the poll? */
+Essentially, the answer is NO.  However, there was a small bug nearby which may have caused frustration.  The code basically looked like this:
+
+void AsyncPollCallback(...)
+{
+  if(stopping)
+  {
+    // Don't do callback because we're stopping
+    return;
+  }
+  // Do callback
+  // Start another poll
+}
+
+BUT, if the user calls Stop from the callback method, then another poll is started when it shouldn't be.
+
+Other notes:
+
+Altered DataFromTXTRecordDictionary to accept a null argument. This is helpful to allow one to quickly create an empty TXT record.
+
+Altered DataFromTXTRecordDictionary to allow either a byte[] or string as a value in the dictionary argument.  This makes it easier for programmers to make TXT records.  Plus, Apple's NSNetService works fine with a dictionary containing string values.
+
+Previously, DNSService contained the variables inPoll, stopping, and sdRef.  In order to allow DNSService to maintain multiple sdRef's, I extended UnixSocket, and placed these variables in the extended class.  This is in the UnixSocket file, and the class is called WatchSocket.
+
+And of course:
+
+Updated BrowserServiceSample to reflect new capabilities.
+Updated PublishServiceSample to reflect new capabilities.
+
+
+Ongoing changes will not be reported in this text file. Instead, consult the subversion repository changelog.
