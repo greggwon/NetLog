@@ -32,9 +32,35 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.Practices.EnterpriseLibrary.Common">
+      <HintPath>L:\distributions\3rdParty\Microsoft\EnterpriseLibrary\Microsoft.Practices.EnterpriseLibrary.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.EnterpriseLibrary.Data">
+      <HintPath>L:\distributions\3rdParty\Microsoft\EnterpriseLibrary\Microsoft.Practices.EnterpriseLibrary.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.ServiceLocation">
+      <HintPath>L:\distributions\3rdParty\Microsoft\EnterpriseLibrary\Microsoft.Practices.ServiceLocation.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.Unity">
+      <HintPath>L:\distributions\3rdParty\Microsoft\Prism4.1\Lib\Desktop\Unity\Microsoft.Practices.Unity.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.Unity.Configuration">
+      <HintPath>L:\distributions\3rdParty\Microsoft\Prism4.1\Lib\Desktop\Unity\Microsoft.Practices.Unity.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.Unity.Interception">
+      <HintPath>L:\distributions\3rdParty\Microsoft\Prism4.1\Lib\Desktop\Unity\Microsoft.Practices.Unity.Interception.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.Unity.Interception.Configuration">
+      <HintPath>L:\distributions\3rdParty\Microsoft\Prism4.1\Lib\Desktop\Unity\Microsoft.Practices.Unity.Interception.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="RabbitMQ.Client, Version=3.1.3.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>L:\distributions\3rdParty\RabbitMQ\RabbitMQ.Client.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Transactions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -46,13 +72,21 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\NetLog.Logging.csproj">
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\Logging\NetLog.Logging.csproj">
       <Project>{dd1c3fd6-e234-4b47-afa3-6da51c1f7eac}</Project>
       <Name>NetLog.Logging</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\ThreadUtil\ThreadUtil.csproj">
+      <Project>{7d753786-8e44-4006-bcea-0b5c2343d75f}</Project>
+      <Name>ThreadUtil</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwellscada-workspace\lufkin.iwellscada.v1_0\model\model.csproj">
+      <Project>{2722022d-4404-4138-ae33-0da1c49f4874}</Project>
+      <Name>model</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

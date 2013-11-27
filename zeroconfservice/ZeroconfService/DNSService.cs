@@ -234,7 +234,7 @@ namespace ZeroconfService
 		/// </summary>
 		protected void SetupWatchSocket(IntPtr sdRef)
 		{
-			Int32 socketId = mDNSImports.DNSServiceRefSockFD(sdRef);
+			UIntPtr socketId = (UIntPtr)mDNSImports.DNSServiceRefSockFD(sdRef);
 			WatchSocket socket = new WatchSocket(socketId, sdRef);
 
 			sdRefToSocketMapping.Add(sdRef, socket);

@@ -59,13 +59,19 @@
     <ManifestKeyFile>NetLogMonitor_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <GenerateManifests>true</GenerateManifests>
+    <GenerateManifests>false</GenerateManifests>
   </PropertyGroup>
   <PropertyGroup>
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'WebTest|AnyCPU'">
     <OutputPath>bin\WebTest\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <TargetZone>LocalIntranet</TargetZone>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -121,6 +127,7 @@
     </EmbeddedResource>
     <None Include="app.config" />
     <None Include="NetLogMonitor_TemporaryKey.pfx" />
+    <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -136,6 +143,10 @@
     <ProjectReference Include="..\..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\Logging\NetLog.Logging.csproj">
       <Project>{dd1c3fd6-e234-4b47-afa3-6da51c1f7eac}</Project>
       <Name>NetLog.Logging</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\zeroconfservice\ZeroconfService\ZeroconfService.csproj">
+      <Project>{ad5cf7a9-93c4-48dd-acd8-38dd434f1491}</Project>
+      <Name>ZeroconfService</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
