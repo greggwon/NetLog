@@ -27,7 +27,7 @@ namespace Testing.Level1.Level2 {
 			Logger log2 = Logger.GetLogger( "Testing.Level1" );
 			Logger log3 = Logger.GetLogger( "Testing.Level1.Level2");
 			log.log(Level.FINER, "Testing Level");
-			log1.log(Level.FINEST, "Testing Level1");
+			log1.log(Level.FINER, "Testing Level1");
 			log2.log(Level.FINEST, "Testing Level2");
 			log3.log(Level.ALL, "Testing Level3");
 		}
