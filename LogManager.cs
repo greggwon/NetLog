@@ -169,6 +169,40 @@ namespace NetLog.Logging
 			readStream(rd);
 		}
 
+		public Level LevelOfLogger( string name ) {
+			if( levels.ContainsKey(name) ) {
+				return levels[ name ];
+			}
+			string[]arr = name.Split('.');
+			for( int i = arr.Length - 2; i >= 0; ++i ) {
+				string nm = "";
+				for( int j = 0; j < i; ++j ) {
+					if( j > 0 )
+						nm += ".";
+					nm += arr[ j ];
+				}
+				// If there is a physical Logger at this level, use any
+				// level explicitly set there.
+				if( loggers.ContainsKey(nm) && loggers[ nm ].Level != null ) {
+					return loggers[ nm ].Level;
+				}
+				// If there is a property set Level at a particular level, use that
+				// level.
+				if( levels.ContainsKey(nm) ) {
+					return levels[ nm ];
+				}
+			}
+			try {
+				// The top level logger has a level set for itself.
+				// technically the loop above also covers this logger name
+				// but we'll do it explicitly here too just to make sure.
+				return loggers[ "" ].Level;
+			} catch( Exception ex ) {
+				ReportExceptionToEventLog("Can't get level for '' Logger instance", ex);
+			}
+			return Level.ALL;
+		}
+
 		private void readStream( StreamReader rd ) {
 			try {
 				string line;
@@ -266,7 +300,8 @@ namespace NetLog.Logging
 
 						String level = line.Substring( lidx+(".level=".Length) );
 						Level l = Level.parse( level );
-						levels[name] = l;
+						PutLevel(name, l);
+
 						if( handlers.ContainsKey( name ) ) {
 							handlers[name].Level = l;
 						} else {
@@ -321,6 +356,10 @@ namespace NetLog.Logging
 				ReportExceptionToEventLog("The Logging configuration stream could not be read", e);
 				Console.WriteLine("# SEVERE # "+e.Message+":\n"+e.StackTrace);
 			}
+		}
+
+		private void PutLevel( string name, Level l ) {
+			levels[ name ] = l;
 		}
 
 		protected void putPropValue(object obj, string propnm, string value)

@@ -46,10 +46,12 @@ namespace NetLog.Logging
 					if( name.Equals("") ) {
 						Handler h = new ConsoleHandler();
 						l.handlers.Add( h );
+						// This is the only level that we force to .INFO.  All
+						// others will find there level here, or explicitly set.
+						l.Level = Level.INFO;
 						if( h.Formatter == null )
 							h.Formatter = new StreamFormatter();
 					}
-					l.level = Level.INFO;
 					lm.AddLogger( l );
 				} else {
 					l = LogManager.Loggers[name];
@@ -93,7 +95,7 @@ namespace NetLog.Logging
 				if ( consoleDebug )
 					Console.WriteLine( "logger: " + lg.Name + ", level: " + ( l == null ? "null" : l.ToString( ) ) ); 
 #endif
-				return l == null ? Level.ALL : l;
+				return l == null ? LogManager.GetLogManager().LevelOfLogger(name) : l;
 			}
 		}
 
@@ -396,11 +398,20 @@ namespace NetLog.Logging
 			rec.Parameters = parms;
 			log (rec) ;
 		}
-		
+		/// <summary>
+		/// D
+		/// </summary>
+		/// <param name="level"></param>
+		/// <returns></returns>
+		[Obsolete]
 		public bool isLoggable( Level level ) {
-			return (level.IntValue >= this.Level.IntValue && this.Level != Level.OFF);
+			return IsLoggable(level);
 		}
-		
+
+		public bool IsLoggable( Level level ) {
+			return ( level.IntValue >= this.Level.IntValue && this.Level != Level.OFF );
+		}
+
 		public void log( LogRecord rec )
 		{
 			// stop now if not loggable

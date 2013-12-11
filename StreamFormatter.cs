@@ -117,13 +117,25 @@ namespace NetLog.Logging
 			b.Append( formatMessage( rec ) );
 			if( rec.Thrown != null ) {
 				b.Append( Eol );
-				if ( rec.Thrown.StackTrace != null && rec.Thrown.StackTrace.Length > 0 )
-					b.Append( rec.Thrown.StackTrace );
-				else
-					b.Append( "*** No StackTrace Lines Present *** ");
+				AddStackTrace( b, rec.Thrown );
 			}
 			b.Append( Eol );
 			return b.ToString();
+		}
+
+		private void AddStackTrace( StringBuilder b, Exception exception ) {
+			if( exception.StackTrace != null && exception.StackTrace.Length > 0 ) {
+				if( exception.InnerException != null ) {
+					AddStackTrace(b, exception.InnerException);
+					b.Append(Eol);
+				}
+				b.Append("Wrapped in Exception: ");
+				b.Append(exception.GetType().FullName);
+				b.Append(Eol);
+				b.Append(exception.StackTrace);
+			} else {
+				b.Append("*** No StackTrace Lines Present *** ");
+			}
 		}
 
 		public string Eol { get; set; }

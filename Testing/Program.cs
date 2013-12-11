@@ -14,12 +14,22 @@ using lufkin.iwellscada.v1_0.model;
 using System.Data;
 using System.Data.Common;
 
-namespace Testing {
+namespace Testing.Level1.Level2 {
 	class Program {
 		static Logger log = Logger.GetLogger(typeof(Program).FullName);
 		static byte[]data = new byte[ 10240 ];
 		static void Main( string[] args ) {
-			new Program().TCPSocketTester();
+			new Program().LogTester();
+		}
+
+		private void LogTester() {
+			Logger log1 = Logger.GetLogger( "Testing" );
+			Logger log2 = Logger.GetLogger( "Testing.Level1" );
+			Logger log3 = Logger.GetLogger( "Testing.Level1.Level2");
+			log.log(Level.FINER, "Testing Level");
+			log1.log(Level.FINEST, "Testing Level1");
+			log2.log(Level.FINEST, "Testing Level2");
+			log3.log(Level.ALL, "Testing Level3");
 		}
 
 		private void TCPSocketTester() {

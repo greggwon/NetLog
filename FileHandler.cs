@@ -36,14 +36,18 @@ namespace NetLog.Logging
 		}
 
 		public override void Close() {
-			while( !processor() ) {
-				lock( this ) {
-					Monitor.Wait( this, 400 );
+			try {
+				while( !processor() ) {
+					lock( this ) {
+						Monitor.Wait(this, 400);
+					}
 				}
-			}
-			if( outf != null ) {
-				outf.Close();
-				outf = null;
+				if( outf != null ) {
+					outf.Close();
+					outf = null;
+				}
+			} catch( Exception ex ) {
+				LogManager.ReportExceptionToEventLog("error closing FileHandler", ex);
 			}
 		}
 

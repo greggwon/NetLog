@@ -8,13 +8,16 @@ using System.Configuration;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+#if BonjourEnabled
+using ZeroconfService;
+#endif
 
 namespace NetLog.Logging {
 	public class TCPSocketHandler : Handler {
 		private ListenerManager listener;
-		private bool listening;
-		private int port;
-		private string addr;
+		internal bool listening;
+		private int port = 12314;
+		private string addr, appName;
 		internal List<LogRecord>history = new List<LogRecord>();
 
 		public TCPSocketHandler( string host, int port )
@@ -31,6 +34,7 @@ namespace NetLog.Logging {
 			PortNumber = port;
 			HostAddress = null;
 			Formatter = new StreamFormatter(brief, withTime, truncatePackageNames );
+			//appName = AppDomain.CurrentDomain.ApplicationIdentity.FullName;
 		}
 
 		public TCPSocketHandler()
@@ -55,12 +59,12 @@ namespace NetLog.Logging {
 		/// <param name="rec"></param>
 		protected override void Push( LogRecord rec ) {
 			// stop now if not loggable
-			if( rec.Level.IntValue < this.Level.IntValue || this.Level == Level.OFF || listener.handlers.Count == 0 ) {
+			if( rec.Level.IntValue < this.Level.IntValue || this.Level == Level.OFF || listener.remoteSockets.Count == 0 ) {
 				return;
 			}
 
 			rec.SequenceNumber = NextSequence;
-			if( listener.handlers.Count == 0 ) {
+			if( listener.remoteSockets.Count == 0 ) {
 				lock( this ) {
 					history.Add(rec);
 					if( history.Count > 100 ) {
@@ -71,23 +75,23 @@ namespace NetLog.Logging {
 			String str = Formatter.format(rec) + "\r";
 			try {
 				byte[] msg = System.Text.Encoding.UTF8.GetBytes(str);
-				lock( listener.handlers ) {
+				lock( listener.remoteSockets ) {
 					List<Socket> fails = new List<Socket>();
-					foreach( Socket h in listener.handlers ) {
+					foreach( Socket remote in listener.remoteSockets ) {
 						try {
-							h.Send(msg);
+							remote.Send(msg);
 						} catch( Exception ex ) {
-							fails.Add(h);
-							LogManager.ReportExceptionToEventLog("Cannot write message to client " + h + ": " + ex, ex);
+							fails.Add(remote);
+							LogManager.ReportExceptionToEventLog("Cannot write message to client " + remote + ": " + ex, ex);
 						}
 					}
-					foreach( Socket h in fails ) {
+					foreach( Socket remote in fails ) {
 						try {
-							h.Close();
+							remote.Close();
 						} catch( Exception ex ) {
-							LogManager.ReportExceptionToEventLog("Cannot write message to client " + h + ": " + ex, ex);
+							LogManager.ReportExceptionToEventLog("Cannot write message to client " + remote + ": " + ex, ex);
 						} finally {
-							listener.handlers.Remove(h);
+							listener.remoteSockets.Remove(remote);
 						}
 					}
 				}
@@ -170,13 +174,35 @@ namespace NetLog.Logging {
 					listener.HostAddress = addr;
 			}
 		}
+#if BonjourEnabled
+		public String ApplicationName {
+			get {
+				return appName;
+			}
+			set {
+				appName = value;
+				if( listener != null )
+					listener.ApplicationName = appName;
+			}
+		}
+#endif
 	}
 
 	internal class ListenerManager : IDisposable {
 		private Socket listener;
-		internal List<Socket>handlers;
+		internal List<Socket>remoteSockets;
 		private bool stopping;
 		private TCPSocketHandler hand;
+		private AutoResetEvent allDone = new AutoResetEvent(false);
+		private string addr;
+#if BonjourEnabled
+		private NetService publishService;
+#endif
+		private string domain, type, name;
+#if BonjourEnabled
+		private string appName;
+#endif
+		private static Logger log = Logger.GetLogger(typeof(ListenerManager).FullName);
 
 		public void Dispose() {
 			Dispose(true);
@@ -189,106 +215,167 @@ namespace NetLog.Logging {
 		}
 
 		public ListenerManager( TCPSocketHandler handler ) {
-			handlers = new List<Socket>();
+			remoteSockets = new List<Socket>();
 			stopping = false;
 			hand = handler;
+#if BonjourEnabled
+			InitBonjourSetup();
+#endif
 		}
+
+#if BonjourEnabled
+		private void InitBonjourSetup() {
+			publishService = new NetService(domain, type, name, port);
+
+			publishService.DidPublishService += new NetService.ServicePublished(publishService_DidPublishService);
+			publishService.DidNotPublishService += new NetService.ServiceNotPublished(publishService_DidNotPublishService);
+		}
+
+		private void RepublishService() {
+			System.Collections.Hashtable dict = new System.Collections.Hashtable();
+			dict.Add("txtvers", "1");
+			dict.Add("application", this.ApplicationName);
+			dict.Add("host", this.HostAddress);
+			dict.Add("port", this.PortNumber);
+
+			publishService.TXTRecordData = NetService.DataFromTXTRecordDictionary(dict);
+
+			publishService.Publish();
+		}
+
+		private void publishService_DidNotPublishService( NetService service, DNSServiceException exception ) {
+			log.severe("{0}: Service was not published for browsing: {1}", exception, service, exception.Message);
+		}
+
+		private void publishService_DidPublishService( NetService service ) {
+			throw new NotImplementedException();
+		}
+#endif
 
 		private void acceptCallback( IAsyncResult ar ) {
-			Socket listener = (Socket)ar.AsyncState;
-			Socket handler = listener.EndAccept(ar);
-			// Turn off Nagle to get data through on each log message.
-			handler.NoDelay = false;
-			lock( handlers ) {
-				//byte[] data = { 0xff, 253 , 0xff, 240 };
-				//handler.Send(data);
-				hand.Publish(new LogRecord(hand.Level, "have handlers: "+ handlers.Count));
-				if( handlers.Count == 0 ) {
-					hand.Publish(new LogRecord(hand.Level, "have history Records: " + hand.history.Count));
-					foreach( LogRecord rec in hand.history ) {
-						String str = hand.Formatter.format(rec) + "\r";
-						try {
-							byte[] msg = System.Text.Encoding.UTF8.GetBytes(str);
-							handler.Send(msg);
-						} catch( Exception ex ) {
-							LogManager.ReportExceptionToEventLog("Cannot write message to client "+handler+" : "+ex.Message,ex);
-							break;
+
+			try {
+				Socket listener = (Socket)ar.AsyncState;
+				Socket remoteSocket = listener.EndAccept(ar);
+				// Turn off Nagle to get data through on each log message.
+				remoteSocket.NoDelay = false;
+				lock( remoteSockets ) {
+					try {
+						hand.Publish(new LogRecord(hand.Level, "have handlers: " + remoteSockets.Count));
+						if( remoteSockets.Count == 0 ) {
+							hand.Publish(new LogRecord(hand.Level, "have history Records: " + hand.history.Count));
+							foreach( LogRecord rec in hand.history ) {
+								String str = hand.Formatter.format(rec) + "\r";
+								try {
+									byte[] msg = System.Text.Encoding.UTF8.GetBytes(str);
+									remoteSocket.Send(msg);
+								} catch( Exception ex ) {
+									LogManager.ReportExceptionToEventLog("Cannot write message to client " + remoteSocket + " : " + ex.Message, ex);
+									break;
+								}
+							}
 						}
+					} finally {
+						remoteSockets.Add(remoteSocket);
+						WatchLevels(hand, remoteSocket);
 					}
 				}
-				handlers.Add(handler);
-				WatchLevels(hand, handler);
+			} catch( Exception ex ) {
+				LogManager.ReportExceptionToEventLog("Can't process socket connection", ex);
+			} finally {
+				log.info("allDone.Set()");
+				allDone.Set();
 			}
-			allDone.Set();
 		}
 
+		/// <summary>
+		/// Process characters sent through the TCP stream, '+' and '-' which will change
+		/// the logging level of the handler.
+		/// </summary>
+		/// <param name="h"></param>
+		/// <param name="handler"></param>
 		internal void WatchLevels( TCPSocketHandler h, Socket handler ) {
-			Thread th = new Thread(new ThreadStart(() => {
+			Thread th = new Thread(() => {
 				h.Publish(new LogRecord(h.Level, "Processing telnet controls: "+handler));
 				int cnt;
 				byte[] data = new byte[10];
-				while( ( cnt = handler.Receive(data) ) > 0 ) {
-					String str = "";
-					for( int i = 0; i < cnt; ++i ) {
-						if( i > 0 )
-							str += " ";
-						str += data[ i ].ToString("x02");
-					}
-					if( data[ 0 ] == 0xff ) {
-						h.Publish(new LogRecord(h.Level, "Saw telnet control: " + str));
-						continue;
-					}
-					h.Publish(new LogRecord(h.Level, "Saw unexpected received data: " + str));
-					for( int i = 0; i < cnt; ++i ) {
-						Level l = h.Level;
-						if( l == Level.ALL )
-							l = Level.FINEST;
-						if( l.IntValue > Level.SEVERE.IntValue + 100 ) {
-							l = new Level("Level_" + ( Level.SEVERE.IntValue + 100 ), Level.SEVERE.IntValue + 100);
+				try {
+					while( !stopping && handler.Connected && ( cnt = handler.Receive(data) ) > 0 ) {
+						String str = "";
+						for( int i = 0; i < cnt; ++i ) {
+							if( i > 0 )
+								str += " ";
+							str += data[ i ].ToString("x02");
 						}
-						if( data[ i ] == '+' ) {
-							h.Level = new Level("Level_" + ( l.IntValue + 100 ), l.IntValue + 100);
-							h.Publish(new LogRecord(h.Level, "Log Level Changed to " + h.Level));
-							break;
-						} else if( data[ i ] == '=' ) {
-							h.Publish(new LogRecord(h.Level, "Log Level is Currently " + h.Level));
-						} else if( data[ i ] == '-' ) {
-							h.Level = new Level("Level_" + ( l.IntValue - 100 ), l.IntValue - 100);
-							h.Publish(new LogRecord(h.Level, "Log Level Changed to " + h.Level));
-							break;
+						if( data[ 0 ] == 0xff ) {
+							h.Publish(new LogRecord(h.Level, "Saw telnet control: " + str));
+							continue;
+						}
+						h.Publish(new LogRecord(h.Level, "Saw unexpected received data: " + str));
+						for( int i = 0; i < cnt; ++i ) {
+							Level l = h.Level;
+							if( l == Level.ALL )
+								l = Level.FINEST;
+							if( l.IntValue > Level.SEVERE.IntValue + 100 ) {
+								l = new Level("Level_" + ( Level.SEVERE.IntValue + 100 ), Level.SEVERE.IntValue + 100);
+							}
+							if( data[ i ] == '+' ) {
+								h.Level = new Level("Level_" + ( l.IntValue + 100 ), l.IntValue + 100);
+								h.Publish(new LogRecord(h.Level, "Log Level Changed to " + h.Level));
+								break;
+							} else if( data[ i ] == '=' ) {
+								h.Publish(new LogRecord(h.Level, "Log Level is Currently " + h.Level));
+							} else if( data[ i ] == '-' ) {
+								h.Level = new Level("Level_" + ( l.IntValue - 100 ), l.IntValue - 100);
+								h.Publish(new LogRecord(h.Level, "Log Level Changed to " + h.Level));
+								break;
+							}
 						}
 					}
+				} catch( Exception ex ) {
+					LogManager.ReportExceptionToEventLog("Error listening to socket: " + listener, ex);
 				}
-			}));
+			});
 			th.IsBackground = true;
 			th.Start();
 		}
+		IPEndPoint localEP;
 
-		AutoResetEvent allDone = new AutoResetEvent(false);
 		internal void StartListening() {
-			IPEndPoint localEP;
 			if( HostAddress == null ) {
 				localEP = new IPEndPoint(IPAddress.Any, PortNumber);
 			} else {
 				IPHostEntry ipHostInfo = Dns.GetHostEntry(HostAddress);
-				localEP = new IPEndPoint(ipHostInfo.AddressList[ 0 ], PortNumber);
+				for( int i = 0; i < ipHostInfo.AddressList.Length; ++i ) {
+					if( ipHostInfo.AddressList[ i ].AddressFamily == AddressFamily.InterNetworkV6 )
+						continue;
+					localEP = new IPEndPoint(ipHostInfo.AddressList[ i ], PortNumber);
+					break;
+				}
 			}
 
 			Console.WriteLine("Local address and port : {0}", localEP.ToString());
 
 			listener = new Socket(localEP.Address.AddressFamily,
 				SocketType.Stream, ProtocolType.Tcp);
-
+			stopping = false;
 			Thread th = new Thread(new ThreadStart(() => {
 				try {
 					listener.Bind(localEP);
 					listener.Listen(10);
 
 					while( !stopping ) {
+						// reset semaphore to wait for accept to complete
+						log.info("allDone.Reset()");
 						allDone.Reset();
+
+						// Enqueue accept
 						listener.BeginAccept(
 							new AsyncCallback(acceptCallback),
 							listener);
+
+						// Wait on semaphore.
+						log.info("allDone.WaitOne()");
 						allDone.WaitOne();
 					}
 				} catch( Exception e ) {
@@ -298,22 +385,84 @@ namespace NetLog.Logging {
 			th.IsBackground = true;
 			th.Start();
 		}
-
+		
+		/// <summary>
+		/// 
+		/// </summary>
 		public void Close() {
 			stopping = true;
-	
-			listener.Close();
-			foreach( Socket h in handlers ) {
-				try {
-					h.Close();
-				} catch( Exception ex ) {
-					LogManager.ReportExceptionToEventLog("Cannot write message to client " + h + ": " + ex, ex);
+
+			try {
+				if( listener != null )
+					listener.Close();
+			} catch( Exception ex ) {
+				LogManager.ReportExceptionToEventLog("Can't close listener", ex);
+			}
+			listener = null;
+
+			try {
+				foreach( Socket h in remoteSockets ) {
+					try {
+						h.Close();
+					} catch( Exception ex ) {
+						LogManager.ReportExceptionToEventLog("Cannot write message to client " + h + ": " + ex, ex);
+					}
 				}
+			} finally {
+				remoteSockets.Clear();
 			}
 		}
 
-		public string HostAddress { get; set; }
+		public string HostAddress {
+			get {
+				return addr;
+			}
+			set {
+				addr = value;
+				reconnect("address change");
+			}
+		}
 
-		public int PortNumber { get; set; }
+		private int port;
+		public int PortNumber {
+			get {
+				return port;
+			}
+			set {
+				port = value;
+				reconnect("port change");
+			}
+		}
+
+		private void reconnect(string why) {
+			if( hand == null || hand.listening == false )
+				return;
+			try {
+				Close();
+			} catch( Exception ex ) {
+				LogManager.ReportExceptionToEventLog("Error shutting down TCPSocketHandler for "+why, ex);
+			}
+			try {
+				StartListening();
+#if BonjourEnabled
+				RepublishService();
+#endif
+			} catch( Exception ex ) {
+				LogManager.ReportExceptionToEventLog("Error restarting listening for "+why+" on "+addr+", port=" + port, ex);
+			}
+			
+		}
+#if BonjourEnabled
+		public string ApplicationName {
+			get {
+				return appName;
+			}
+			set {
+				appName = value;
+
+				RepublishService();
+			}
+		}
+#endif
 	}
 }

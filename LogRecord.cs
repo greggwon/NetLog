@@ -24,6 +24,29 @@ namespace NetLog.Logging
 			this.msg = message;
 			millis = DateTime.Now;
 		}
+		public LogRecord( Level level, string message, params object[]args ) {
+			this.level = level;
+			this.msg = String.Format(message,args);
+			millis = DateTime.Now;
+		}
+		public LogRecord( Level level, Exception ex ) {
+			this.level = level;
+			this.msg = ex.Message;
+			thrownEx = ex;
+			millis = DateTime.Now;
+		}
+		public LogRecord( Level level, Exception ex, String msg ) {
+			this.level = level;
+			this.msg = msg;
+			thrownEx = ex;
+			millis = DateTime.Now;
+		}
+		public LogRecord( Level level, Exception ex, String msg, params object[]args ) {
+			this.level = level;
+			this.msg = String.Format(msg,args);
+			thrownEx = ex;
+			millis = DateTime.Now;
+		}
 
 		private string loggerName;
 		public string LoggerName {
