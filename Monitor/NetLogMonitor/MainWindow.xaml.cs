@@ -769,6 +769,27 @@ namespace NetLog.NetLogMonitor {
 				CopyListToClipboard();
 			}
 		}
+
+		private void findMatchPattern_Click( object sender, RoutedEventArgs e ) {
+			Regex r = new Regex( searchBox.Text );
+			eventList.SelectedIndex = -1;
+			foreach( MatchPatternItem line in eventList.Items ) {
+				if( r.Matches(line.text).Count > 0 ) {
+					eventList.SelectedItems.Add(line);
+				}
+			}
+		}
+
+		private void searchBox_SearchSelected( object sender, MouseEventArgs e ) {
+			//if( searchBox.SelectionLength == 0 ) {
+			//	searchBox.SelectionStart = 0;
+			//	searchBox.SelectionLength = searchBox.Text.Length;
+			//}
+		}
+
+		private void searchBox_TextChanged( object sender, TextChangedEventArgs e ) {
+
+		}
 	}
 	public class MyLogger {
 		Handler h;
