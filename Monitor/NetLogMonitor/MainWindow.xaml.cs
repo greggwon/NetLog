@@ -279,6 +279,10 @@ namespace NetLog.NetLogMonitor {
 		private void AppendMoreText( string s ) {
 			int cnt = eventList.Items.Count;
 			string[]str = s.Split('\n');
+			if( eventList.Items.Count == 0 ) {
+				AppendText(s);
+				return;
+			}
 			MatchPatternItem item = (MatchPatternItem)eventList.Items[ cnt - 1 ];
 			item.text += str[0];
 			item.Content = item.text;
