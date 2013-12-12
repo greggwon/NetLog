@@ -11,7 +11,7 @@ namespace NetLog.Logging
     {
 		private String name;
 		private List<Handler> handlers;
-		private Level level;
+		internal Level level;
 		private static bool consoleDebug;
 		private bool useParentHandlers = true;
 

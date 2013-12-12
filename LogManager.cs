@@ -173,18 +173,21 @@ namespace NetLog.Logging
 			if( levels.ContainsKey(name) ) {
 				return levels[ name ];
 			}
+			//"logger.name.more.other"
+
+			//	"logger", "name", "more", "other"
 			string[]arr = name.Split('.');
-			for( int i = arr.Length - 2; i >= 0; ++i ) {
+			for( int i = arr.Length - 2; i >= 0; --i ) {
 				string nm = "";
-				for( int j = 0; j < i; ++j ) {
+				for( int j = 0; j <= i; ++j ) {
 					if( j > 0 )
 						nm += ".";
 					nm += arr[ j ];
 				}
 				// If there is a physical Logger at this level, use any
 				// level explicitly set there.
-				if( loggers.ContainsKey(nm) && loggers[ nm ].Level != null ) {
-					return loggers[ nm ].Level;
+				if( loggers.ContainsKey(nm) && loggers[ nm ].level != null ) {
+					return loggers[ nm ].level;
 				}
 				// If there is a property set Level at a particular level, use that
 				// level.
@@ -221,6 +224,11 @@ namespace NetLog.Logging
 								} catch( Exception ex ) {
 									ReportExceptionToEventLog("Error creating logging Handler \"" + cls + "\"", ex);
 									Console.WriteLine( "# ERROR # Error creating handler \""+cls+"\": "+ex.Message+"\n"+ex.Source+": "+ex.StackTrace );
+									Exception other = ex.InnerException;
+									while( other != null ) {
+										Console.WriteLine("InnerException:\n" + other.StackTrace);
+										other = other.InnerException;
+									}
 									continue;
 								}
 								if( h == null ) {
