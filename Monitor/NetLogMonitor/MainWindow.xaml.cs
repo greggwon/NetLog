@@ -345,7 +345,7 @@ namespace NetLog.NetLogMonitor {
 		}
 
 		Control selectionSource;
-		bool mouseDown;
+		//bool mouseDown;
 		int startDrag = -1;
 		private void mouseMoving( object sender, MouseEventArgs e ) {
 			if( e.LeftButton == MouseButtonState.Pressed && startDrag != -1 ) {
