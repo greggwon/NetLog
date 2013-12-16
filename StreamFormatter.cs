@@ -13,7 +13,7 @@ namespace NetLog.Logging
 		private bool trunc = false;
 		private bool withClasses = true;
 		private bool withMethods = true;
-		private string fmt = "yyyy/MM/dd HH:mm:ss.fff", bfmt = "HH:mm:ss";
+		internal static string fmt = "yyyy/MM/dd HH:mm:ss.fff", bfmt = "HH:mm:ss";
 
 		public StreamFormatter()
 		{

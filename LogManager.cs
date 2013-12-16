@@ -18,6 +18,7 @@ namespace NetLog.Logging
 	{
 		private static Dictionary<string, Logger> loggers = new Dictionary<string, Logger>();
 		private static Dictionary<string, Handler> handlers = new Dictionary<string, Handler>();
+		private static Dictionary<string, Filter> filters = new Dictionary<string, Filter>();
 		private static Dictionary<string, Formatter> formatters = new Dictionary<string, Formatter>();
 		private static Dictionary<string, Level> levels = new Dictionary<string, Level>();
 		private static LogManager mgr;
@@ -28,17 +29,6 @@ namespace NetLog.Logging
 		private static Boolean configLoaded;
 
 		static LogManager() {
-
-#if TESTING_CONFIGURATION
-			NetLogConfigurationSection cfg = (NetLogConfigurationSection)ConfigurationManager.GetSection("NetLogLogging");
-			Console.WriteLine( "log manager field: " + cfg );
-
-			object locks = new object();
-			lock( locks ) {
-				Monitor.Wait(locks);
-			}  
-#endif
-
 			string instName = System.Environment.GetEnvironmentVariable( "netlog.logging.logmanager" );
 			if( instName != null ) {
 				mgr = (LogManager)Activator.CreateInstance( Type.GetType( instName ) );
@@ -51,7 +41,7 @@ namespace NetLog.Logging
 		}
 
 		public bool ConsoleDebug {
-			get { return log != null && log.isLoggable( Level.FINE ); }
+			get { return log != null && log.IsLoggable(Level.FINE); }
 			set { log.Level = value ? Level.FINE : Level.INFO ; }
 		}
 
@@ -60,7 +50,7 @@ namespace NetLog.Logging
 		}
 
 		private void OnChangedConfig ( object source, FileSystemEventArgs args ) {
-			if ( log != null && log.isLoggable( Level.FINE ) )
+			if( log != null && log.IsLoggable(Level.FINE) )
 				Console.WriteLine( "logging.properties file changed: " + args.FullPath );
 			lock ( loggers ) {
 				mgr.ReadConfiguration( );
@@ -100,6 +90,18 @@ namespace NetLog.Logging
 						"specified initialization class, \"" + initName + "\": ", ex);
 				}
 			}
+			try {
+				NetLogConfigurationSection sect = (NetLogConfigurationSection)
+					ConfigurationManager.GetSection("LoggingConfiguration");
+				if( sect != null ) {
+					ActivateConfigurationSection(sect);
+					configLoaded = true;
+					return;
+				}
+			} catch( Exception ex ) {
+				Console.WriteLine(ex.Message + ":\n" + ex);
+			}
+
 			String props = "N/A";
 			try
 			{
@@ -107,7 +109,7 @@ namespace NetLog.Logging
 				if( props == null )
 					props = "logging.properties";
 				if( fw != null ) {
-					if ( log != null && log.isLoggable( Level.FINE ) )
+					if( log != null && log.IsLoggable(Level.FINE) )
 						Console.WriteLine( "Dropping existing watcher for: " + fw.Path );
 					fw.EnableRaisingEvents = false;
 				}
@@ -118,7 +120,7 @@ namespace NetLog.Logging
 				fw.Filter = new FileInfo( props ).Name;
 				fw.EnableRaisingEvents = true;
 				if( new FileInfo( props ).Exists == false ) {
-					if ( log != null && log.isLoggable( Level.FINE ) ) {
+					if( log != null && log.IsLoggable(Level.FINE) ) {
 						Console.WriteLine("The designated properties file: "+props+" does not exist" );
 					}
 					return;
@@ -160,7 +162,75 @@ namespace NetLog.Logging
 			}			
 		}
 
+		private void ActivateConfigurationSection( NetLogConfigurationSection sect ) {
+			foreach( FormatterConfiguration fmt in sect.Formatters ) {
+				string name = fmt.Formatter;
+				string cls = fmt.ClassName;
+				string asmb = fmt.AssemblyName;
+				Formatter fmtr = (Formatter)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, cls).Unwrap();
+				formatters.Add(name, fmtr);
+				foreach( PropertyConfiguration p in fmt.Properties ) {
+					SetPropertyOn(fmtr, p);
+				}
+			}
+			foreach( FilterConfiguration filtcfg in sect.Filters ) {
+				string name = filtcfg.Filter;
+				string cls = filtcfg.ClassName;
+				string asmb = filtcfg.AssemblyName;
+				Filter filt = (Filter)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, cls).Unwrap();
+				filters.Add(name, filt);
+				foreach( PropertyConfiguration p in filtcfg.Properties ) {
+					SetPropertyOn(filt, p);
+				}
+			}
+			foreach( HandlerConfiguration hnd in sect.Handlers ) {
+				string name = hnd.Handler;
+				string fmt = hnd.Formatter;
+				string cls = hnd.ClassName;
+				string asmb = hnd.AssemblyName;
+				Handler hndlr = (Handler)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, cls).Unwrap();
+				if( formatters.ContainsKey( fmt ) ) {
+					hndlr.Formatter = formatters[fmt];
+				} else if( fmt.Equals("streamFormatter") ) {
+					hndlr.Formatter = new StreamFormatter(false, true, false);
+					formatters.Add(fmt, hndlr.Formatter);
+				}
+				foreach( PropertyConfiguration p in hnd.Properties ) {
+					SetPropertyOn(hndlr, p);
+				}
+				handlers.Add(name, hndlr);
+			}
+			foreach( LoggerConfiguration lg in sect.Loggers ) {
+				string name = lg.Name;
+				string handler = lg.Handler;
+				Logger log;
+				if( lg.ClassName == null || lg.ClassName.Length == 0 || loggers.ContainsKey(name) ) {
+					if( loggers.ContainsKey(name) ) {
+						throw new InvalidOperationException("Logger with name " + name + " is already defined, can't instantiate as \"" + lg.ClassName + "\"");
+					}
+					log = Logger.NeedNewLogger(name);
+				} else {
+					string asmb = lg.AssemblyName;
+					log = (Logger)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, lg.ClassName).Unwrap();
+				}
+				loggers[ name ] = log;
+				if( handlers.ContainsKey(handler) ) {
+					log.AddHandler(handlers[ handler ]);
+				}
+				foreach( PropertyConfiguration p in lg.Properties ) {
+					SetPropertyOn(log, p);
+				}
+			}
+		}
+
+		private void SetPropertyOn( object fmtr, PropertyConfiguration p ) {
+			putPropValue(fmtr, p.Name, p.Value);
+		}
+
 		internal static void ReportExceptionToEventLog( string msg, Exception ex ) {
+			if( EventLog.SourceExists(NetLog.SOURCE) == false ) {
+				EventLog.CreateEventSource(NetLog.SOURCE, "Application");
+			}
 			EventLog.WriteEntry(NetLog.SOURCE, msg + ": " + ex + "\n" + ex.StackTrace, EventLogEntryType.Error, 0, -1);
 		}
 
@@ -239,21 +309,21 @@ namespace NetLog.Logging
 							} else {
 								h = handlers[cls];
 							}
-							if ( log != null && log.isLoggable( Level.FINE ) )
+							if( log != null && log.IsLoggable(Level.FINE) )
 								Console.WriteLine( "adding handler: " + cls );
 							Logger.GetLogger( "" ).GetHandlers( ).Add( h );
 							// rememeber which handlers are in the root logger.
 							oh[cls] = h;
 						}
 						// remove any handlers no longer listed.
-						if ( log != null && log.isLoggable( Level.FINE ) )
+						if( log != null && log.IsLoggable(Level.FINE) )
 							Console.WriteLine( "root handlers: " + Logger.GetLogger( "" ).GetHandlers( ).Count );
 						foreach( Handler hh in new List<Handler>( Logger.GetLogger("").GetHandlers() ) ) {
-							if ( log != null && log.isLoggable( Level.FINE ) )
+							if( log != null && log.IsLoggable(Level.FINE) )
 								Console.WriteLine( "Checking if using handler: \"" + hh.GetType( ).FullName + "\": " + oh );
 							if ( oh.ContainsKey( hh.GetType( ).FullName ) == false ) {
 								Logger.GetLogger("").RemoveHandler( hh );
-								if ( log != null && log.isLoggable( Level.FINE ) )
+								if( log != null && log.IsLoggable(Level.FINE) )
 									Console.WriteLine( "Removing no longer used handler: \"" + hh.GetType( ).FullName + "\"" );
 							}
 						}
@@ -267,7 +337,7 @@ namespace NetLog.Logging
 							}
 							Logger.GetLogger("").AddHandler( h );
 						}
-						if (log != null && log.isLoggable( Level.FINE ))
+						if( log != null && log.IsLoggable(Level.FINE) )
 							Console.WriteLine("handlers now (" + Logger.GetLogger("").GetHandlers().Count + ") :" + Logger.GetLogger("").GetHandlers()[0]);
 					} else if( ( idx = line.IndexOf(".formatter=" ) ) >= 0 ) {
 						String handler = line.Substring( 0, idx );
@@ -278,23 +348,23 @@ namespace NetLog.Logging
 						// will use it.
 						foreach( string cls in arr ) {
 							if( ! handlers.ContainsKey( handler ) ) {
-								if ( log != null && log.isLoggable( Level.FINE ) )
+								if( log != null && log.IsLoggable(Level.FINE) )
 									Console.WriteLine("Can't set formatter on nonexistent handler: \""+handler+"\"" );
 								continue;
 							}
 							Handler h = handlers[handler];
-							if ( log != null && log.isLoggable( Level.FINE ) )
+							if( log != null && log.IsLoggable(Level.FINE) )
 								Console.WriteLine("set formatter on handler \"" + handler + "\": " + h);
 							Formatter f = (Formatter)Activator.CreateInstance(Type.GetType(cls));
 							// set the formatter.
-							if ( log != null && log.isLoggable( Level.FINE ) )
+							if( log != null && log.IsLoggable(Level.FINE) )
 								Console.WriteLine("setting formatter: " + cls);
 							h.Formatter = f;
 						}
 					} else if( line.StartsWith("config=") ) {
 						string[]arr = line.Substring("config=".Length).Split( new char[]{','} ) ;
 						foreach( string cls in arr ) {
-							if ( log != null && log.isLoggable( Level.FINE ) )
+							if( log != null && log.IsLoggable(Level.FINE) )
 								Console.WriteLine("instantiating config: " + cls);
 							Activator.CreateInstance(Type.GetType(cls));
 						}
@@ -327,12 +397,12 @@ namespace NetLog.Logging
 									cls = cls + "." + nm[i];
 								}
 							}
-							if ( log != null && log.isLoggable( Level.FINE ) )
+							if( log != null && log.IsLoggable(Level.FINE) )
 								Console.WriteLine("found property name: " + arr[0] + " and value =" + arr[1]);
 							try {
 								if( handlers.ContainsKey( cls ) ) {
 									string propnm = nm[ nm.Length-1 ];
-									if ( log != null && log.isLoggable( Level.FINE ) )
+									if( log != null && log.IsLoggable(Level.FINE) )
 										Console.WriteLine("found handler property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
 									Handler h = handlers[cls];
 									if( h != null ) {
@@ -342,7 +412,7 @@ namespace NetLog.Logging
 									}
 								} else if( formatters.ContainsKey( cls ) ) {
 									string propnm = nm[nm.Length - 1];
-									if ( log != null && log.isLoggable( Level.FINE ) )
+									if( log != null && log.IsLoggable(Level.FINE) )
 										Console.WriteLine("found handler property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
 									Formatter f = formatters[cls];
 									putPropValue( f, propnm, arr[1] );
@@ -358,7 +428,7 @@ namespace NetLog.Logging
 			catch (Exception e)
 			{
 				// log will be null during initial configuration load, so log those errors
-				if ( log == null ||log.isLoggable( Level.FINE )) {
+				if( log == null || log.IsLoggable(Level.FINE) ) {
 					Console.WriteLine();
 				}
 				ReportExceptionToEventLog("The Logging configuration stream could not be read", e);
@@ -432,6 +502,22 @@ namespace NetLog.Logging
 
 				return have;
 			}
+		}
+
+		internal static void ConsoleWriteLine( string p, string logger ) {
+			if( p.Length == 0 ) {
+				Console.WriteLine("");
+				return;
+			}
+			
+			Console.Write(DateTime.Now.ToString(StreamFormatter.fmt));
+			Console.Write(" [" + logger + "]");
+			Console.Write(" CONSOLE # ");
+			Console.WriteLine(p);
+		}
+
+		internal static void ConsoleWrite( string p ) {
+			Console.Write(p);
 		}
 	}
 }

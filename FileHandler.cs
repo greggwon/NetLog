@@ -174,9 +174,14 @@ namespace NetLog.Logging
 					finfo = new FileInfo( rname+".0" );
 				} catch( IOException ex ) {
 
-					Console.WriteLine( "Error opening log file (name=\""+rname+"\") for writing: "+ex.Message+"\n"+ex.StackTrace );
+					LogManager.ConsoleWriteLine("Error opening log file (name=\"" + rname + "\") for writing: " + ex.Message + "\n" + ex.StackTrace, typeof(FileHandler).FullName);
+					Exception ee = ex.InnerException;
+					while( ee != null ) {
+						LogManager.ConsoleWriteLine("InnerException: " + ee.Message + "\n" + ee.StackTrace, typeof(FileHandler).FullName);
+						ee = ee.InnerException;
+					}
 					rname = name + "-" + cnt++;
-					Console.WriteLine( "Trying file: \""+rname+"\" next");
+					LogManager.ConsoleWriteLine("Trying file: \"" + rname + "\" next", typeof(FileHandler).FullName);
 				}
 			} while( outp == null );
 			name = rname;

@@ -30,6 +30,25 @@ namespace NetLog.Logging
 			return GetLogger( obj.GetType().FullName );
 		}
 
+		internal static Logger NeedNewLogger( string name) {
+			Logger l;
+			// Have to do this up front because it may create logging instances
+			// to preset levels when logging.properties has such content, and so
+			// we want to find those logger instances, instead of creating them here,
+			// and then not seeing those instances if we do things out of order.
+			LogManager lm = LogManager.GetLogManager( );
+			if ( consoleDebug )
+				Console.WriteLine( "Get logger \"" + name + "\": have? " + ( LogManager.Loggers.ContainsKey( name ) ? ( "YES, Level: " + LogManager.Loggers[name].Level ) : "NO" ) );
+			lock( LogManager.Loggers ) {
+				if( LogManager.Loggers.ContainsKey( name ) == false ) {
+					l = new Logger( name );
+				} else {
+					l = LogManager.Loggers[name];
+				}
+			}
+			return l;
+		}
+
 		public static Logger GetLogger( String name ) {
 			Logger l;
 			// Have to do this up front because it may create logging instances
@@ -42,7 +61,6 @@ namespace NetLog.Logging
 			lock( LogManager.Loggers ) {
 				if( LogManager.Loggers.ContainsKey( name ) == false ) {
 					l = new Logger( name );
-					l.handlers = new List<Handler>();
 					if( name.Equals("") ) {
 						Handler h = new ConsoleHandler();
 						l.handlers.Add( h );
@@ -135,6 +153,7 @@ namespace NetLog.Logging
 
 		private Logger( string name ) {
 			this.name = name;
+			this.handlers = new List<Handler>();
 		}
 
 		public void finest ( Exception ex ) {
@@ -426,8 +445,10 @@ namespace NetLog.Logging
 			while( logger != null ) {
 				if (consoleDebug)
 					Console.WriteLine("\"" + Name + "\" handlers: " + handlers.Count);
-				foreach (Handler h in new List<Handler>( logger.GetHandlers( ) ) ) {
-					h.Publish( rec );
+				if( logger.GetHandlers() != null ) {
+					foreach( Handler h in new List<Handler>(logger.GetHandlers()) ) {
+						h.Publish(rec);
+					}
 				}
 				if( UseParentHandlers == false )
 					break;

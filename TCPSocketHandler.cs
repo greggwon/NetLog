@@ -17,7 +17,10 @@ namespace NetLog.Logging {
 		private ListenerManager listener;
 		internal bool listening;
 		private int port = 12314;
-		private string addr, appName;
+		private string addr;
+#if BonjourEnabled
+		private string appName;
+#endif
 		internal List<LogRecord>history = new List<LogRecord>();
 
 		public TCPSocketHandler( string host, int port )
@@ -195,11 +198,10 @@ namespace NetLog.Logging {
 		private TCPSocketHandler hand;
 		private AutoResetEvent allDone = new AutoResetEvent(false);
 		private string addr;
+		private string type, name;
 #if BonjourEnabled
 		private NetService publishService;
-#endif
-		private string domain, type, name;
-#if BonjourEnabled
+		private string domain;
 		private string appName;
 #endif
 		private static Logger log = Logger.GetLogger(typeof(ListenerManager).FullName);

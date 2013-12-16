@@ -13,13 +13,117 @@ using lufkin.iwellscada.v1_0.model.DAOs;
 using lufkin.iwellscada.v1_0.model;
 using System.Data;
 using System.Data.Common;
+using System.IO;
+using LWMPolling;
+using ModbusPolling;
+using DataItems;
+using Newtonsoft.Json.Linq;
 
 namespace Testing.Level1.Level2 {
-	class Program {
+	class Program : IPollingItemFromAccess, DataGatheringProvider {
 		static Logger log = Logger.GetLogger(typeof(Program).FullName);
 		static byte[]data = new byte[ 10240 ];
 		static void Main( string[] args ) {
-			new Program().LogTester();
+			new Program().LWMRecordTester();
+		}
+
+		public int[] ProcessItem( string well, PollingItem itm, TriggerRegisterRange r ) {
+			return values.ToArray();
+		}
+
+		public object PollingItemValueFrom( string well, string name )
+		{
+			return values;
+		}
+
+		List<int>values = new List<int>();
+		List<bool>statuses = new List<bool>();
+
+		public void LWMRecordTester() {
+			LWMApplication app = new LWMApplication( "Appname", 
+				"lwm.xml", "records.xml", "schedules.xml", "polling.xml",
+				new DestRTU( null, 1 ) );
+			for( int i = 33; i < 4000; ++i ) {
+				values.Add(((i<<8)|(i+1))&0xffff);
+				statuses.Add(true);
+			}
+			StreamWriter strm = new StreamWriter(File.OpenWrite("c:/readtypes.json"));
+			StringBuilder bld = new StringBuilder();
+			bld.Append("{");
+			//int cnt = 0;
+			foreach( DeviceAccessType type in new DeviceAccessType[] { DeviceAccessType.ACCESS_COIL, DeviceAccessType.ACCESS_STATUS, DeviceAccessType.ACCESS_INPUT, DeviceAccessType.ACCESS_HOLDING } ) {
+				foreach( PollingItem itm in 
+					//new PollingItem[]{ app.deviceAccess.ReadTypeItem("LOAD_VFDSpeed_HISTORY_1440" )} ) {
+						app.deviceAccess.ReadTypes(type).Values ) {
+					if( itm.ReadtypeName == null )
+						continue;
+					string val;
+					if( itm.CoilTriggersData ) {
+						val = app.ConvertRecordValuesToJsonFor("test", itm, values, statuses, this);
+					} else {
+						val = app.ConvertItemValuesToJsonFor("test", app.deviceAccess.ReadTypeItem(itm.ReadtypeName),
+							99, values, this, this);
+					}
+
+					bld.Append("\"" + itm.ReadtypeName + "\" : " + val + ",");
+				}
+			}
+			bld.Append("\"empty\" : []}");
+			string str = JObject.Parse(bld.ToString()).ToString();
+			strm.WriteLine(str);
+			strm.Close();
+		}
+
+		public void WebLogTester() {
+			Setup();
+
+			Logger.GetLogger("Testing").info("This is the logging");
+		}
+
+		public void Setup() {
+			String path = ConfigurationManager.AppSettings[ "iWellScada.log" ];
+			if( path == null ) {
+				path = "c:\\programdata\\iWellLink\\Logs\\iWellScada.log";
+			}
+			DirectoryInfo di = new DirectoryInfo(new FileInfo(path).DirectoryName);
+			if( di.Exists == false )
+				di.Create();
+
+			Logger top = Logger.GetLogger("");
+			bool found = false;
+			foreach( Handler h in top.GetHandlers() ) {
+				if( h is FileHandler ) {
+					found = true;
+					break;
+				}
+			}
+			if( !found ) {
+				FileHandler fh = new FileHandler(path);
+				fh.Generations = 20;
+				fh.Limit = 20000000;
+				top.AddHandler(fh);
+			}
+		}
+
+		private void LambdaTester() {
+			ActivityAnalysis a1 = new ActivityAnalysis("a1");
+			ActivityAnalysis a2 = new ActivityAnalysis("a2");
+			ActivityAnalysis a3 = new ActivityAnalysis("a3");
+			ActivityAnalysis a4 = new ActivityAnalysis("a4");
+
+			if( true ) {
+				bool v1 = false, v2 = false;
+				a1.TimeAction(() => {
+					a2.TimeAction(() => {
+						v1 = true;
+					});
+					a3.TimeAction(() => {
+						v2 = true;
+					});
+
+				});
+				log.info("v1: {0}, v2: {1}", v1, v2);
+			}
 		}
 
 		private void LogTester() {
@@ -114,5 +218,6 @@ namespace Testing.Level1.Level2 {
 				log.info("more logging...{0}", lines++);
 			}
 		}
+
 	}
 }

@@ -53,6 +53,10 @@
     <Reference Include="Microsoft.Practices.Unity.Interception.Configuration">
       <HintPath>L:\distributions\3rdParty\Microsoft\Prism4.1\Lib\Desktop\Unity\Microsoft.Practices.Unity.Interception.Configuration.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>L:\distributions\3rdParty\Newtonsoft\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="RabbitMQ.Client, Version=3.1.3.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>L:\distributions\3rdParty\RabbitMQ\RabbitMQ.Client.dll</HintPath>
@@ -75,9 +79,29 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\DataItems\DataItems.csproj">
+      <Project>{2127e49d-10f5-45d4-8959-f6e53505c4a6}</Project>
+      <Name>DataItems</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\DeviceAccess\DeviceAccess.csproj">
+      <Project>{843d4597-c20c-4124-8709-272876c82d30}</Project>
+      <Name>DeviceAccess</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\ELAMDriver\ELAMDriver.csproj">
+      <Project>{f8cf2501-363d-4eba-b915-6afed536a7a7}</Project>
+      <Name>ELAMDriver</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\Logging\NetLog.Logging.csproj">
       <Project>{dd1c3fd6-e234-4b47-afa3-6da51c1f7eac}</Project>
       <Name>NetLog.Logging</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\LWMPolling\LWMPolling.csproj">
+      <Project>{8469fce2-6daf-4f0b-8dd8-e0dd503cda36}</Project>
+      <Name>LWMPolling</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\ModbusPolling\ModbusPolling.csproj">
+      <Project>{4e9343ea-729a-469b-93ef-897cb78bf7cc}</Project>
+      <Name>ModbusPolling</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\ThreadUtil\ThreadUtil.csproj">
       <Project>{7d753786-8e44-4006-bcea-0b5c2343d75f}</Project>
@@ -87,6 +111,24 @@
       <Project>{2722022d-4404-4138-ae33-0da1c49f4874}</Project>
       <Name>model</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\lwm.xml">
+      <Link>lwm.xml</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\polling.xml">
+      <Link>polling.xml</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\records.xml">
+      <Link>records.xml</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\schedules.xml">
+      <Link>schedules.xml</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
