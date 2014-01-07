@@ -29,6 +29,7 @@ namespace NetLog.NetLogMonitor {
 		MyLogger log;
 		Boolean dirty;
 		bool trimmingLines, scrollEnd = true;
+		static ListBox theEventList;
 		public MainWindow() {
 			Logger.GetLogger("").info("Logging Loaded");
 			log = new MyLogger(GetType().FullName);
@@ -46,6 +47,7 @@ namespace NetLog.NetLogMonitor {
 
 			tcpPort.Text = "" + defPort;
 			log.info("starting up");
+			theEventList = eventList;
 			eventList.Background = Brushes.LightGray;
 			addMatch.IsEnabled = false;
 			FillColorsSelection();
@@ -393,8 +395,8 @@ namespace NetLog.NetLogMonitor {
 			} else {
 				log.info("simple click down, adding {0}", e.Source);
 				startDrag = eventList.Items.IndexOf(e.Source);
-				eventList.SelectedItems.Clear();
-				eventList.SelectedItem = null;
+//				eventList.SelectedItems.Clear();
+	//			eventList.SelectedItem = null;
 				eventList.SelectedIndex = startDrag;
 			}
 		}
@@ -500,6 +502,25 @@ namespace NetLog.NetLogMonitor {
 				Foreground = color.fore;
 				this.Margin = new Thickness(0, 0, 0, 0);
 				this.Width = control.Width;
+			}
+			protected override void OnUnselected( RoutedEventArgs e ) {
+				base.OnUnselected(e);
+				Foreground = color.fore;
+				Background = color.back;
+			}
+			protected override void OnSelected( RoutedEventArgs e ) {
+				base.OnSelected(e);
+
+				if( color == blackAndWhite ) {
+					Foreground = Brushes.White;
+					Style s = new Style(typeof(ListBox));
+					theEventList.Style = s;
+				} else {
+					Foreground = color.back;
+					Style s = new Style(typeof(ListBox));
+					s.Resources.Add(SystemColors.HighlightBrushKey, color.fore);
+					theEventList.Style = s;
+				}
 			}
 
 			public MatchPatternItem( string ss ) : this( ss, blackAndWhite ) {
