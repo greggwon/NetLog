@@ -93,8 +93,10 @@ namespace NetLog.Logging
 					this.name = Path.Combine(Directory.GetCurrentDirectory(), value);
 				}
 				lock( this ) {
-					Close();
-					outf = baseFileOpen( true );
+					if( outf != null ) {
+						Close();
+						outf = baseFileOpen(true);
+					}
 				}
 			}
 		}

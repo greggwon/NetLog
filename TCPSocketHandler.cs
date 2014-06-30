@@ -8,6 +8,7 @@ using System.Configuration;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+
 #if BonjourEnabled
 using ZeroconfService;
 #endif
@@ -21,7 +22,7 @@ namespace NetLog.Logging {
 #if BonjourEnabled
 		private string appName;
 #endif
-		internal List<LogRecord>history = new List<LogRecord>();
+		internal Queue<LogRecord>history = new Queue<LogRecord>();
 
 		public TCPSocketHandler( string host, int port )
 			: this(port) {
@@ -35,9 +36,13 @@ namespace NetLog.Logging {
 		public TCPSocketHandler( int port, bool brief, bool withTime, bool truncatePackageNames )
 			: base() {
 			PortNumber = port;
-			HostAddress = null;
 			Formatter = new StreamFormatter(brief, withTime, truncatePackageNames );
-			//appName = AppDomain.CurrentDomain.ApplicationIdentity.FullName;
+#if BonjourEnabled
+			// setting this causes problems because then we have an explicit bind, and connections to "localhost"
+			// don't work because we re bound to ipaddress-any (0.0.0.0).
+			//HostAddress = System.Environment.MachineName;
+			appName = AppDomain.CurrentDomain.FriendlyName;
+#endif
 		}
 
 		public TCPSocketHandler()
@@ -69,9 +74,9 @@ namespace NetLog.Logging {
 			rec.SequenceNumber = NextSequence;
 			if( listener.remoteSockets.Count == 0 ) {
 				lock( this ) {
-					history.Add(rec);
-					if( history.Count > 100 ) {
-						history.RemoveAt(0);
+					history.Enqueue(rec);
+					while( history.Count > 100 ) {
+						history.Dequeue();
 					}
 				}
 			}
@@ -198,8 +203,8 @@ namespace NetLog.Logging {
 		private TCPSocketHandler hand;
 		private AutoResetEvent allDone = new AutoResetEvent(false);
 		private string addr;
-		private string type, name;
 #if BonjourEnabled
+		private string type, name;
 		private NetService publishService;
 		private string domain;
 		private string appName;
@@ -220,17 +225,25 @@ namespace NetLog.Logging {
 			remoteSockets = new List<Socket>();
 			stopping = false;
 			hand = handler;
+			this.HostAddress = handler.HostAddress;
+			this.PortNumber = handler.PortNumber;
 #if BonjourEnabled
+			domain = "local.";
+			type = "_Netlog._tcp";
+			name = "netlog_logging";
+			this.ApplicationName = handler.ApplicationName;
 			InitBonjourSetup();
 #endif
 		}
 
 #if BonjourEnabled
 		private void InitBonjourSetup() {
-			publishService = new NetService(domain, type, name, port);
+			publishService = new NetService(domain, type, this.name, this.PortNumber);
 
 			publishService.DidPublishService += new NetService.ServicePublished(publishService_DidPublishService);
 			publishService.DidNotPublishService += new NetService.ServiceNotPublished(publishService_DidNotPublishService);
+
+			RepublishService();
 		}
 
 		private void RepublishService() {
@@ -283,9 +296,11 @@ namespace NetLog.Logging {
 					}
 				}
 			} catch( Exception ex ) {
+				// we don't clean up remoteSockets here because it will happen on the next
+				// I/O attempt on the socket using exception handling there.
 				LogManager.ReportExceptionToEventLog("Can't process socket connection", ex);
 			} finally {
-				log.info("allDone.Set()");
+				log.fine("allDone.Set()");
 				allDone.Set();
 			}
 		}
@@ -356,7 +371,7 @@ namespace NetLog.Logging {
 				}
 			}
 
-			Console.WriteLine("Local address and port : {0}", localEP.ToString());
+			Console.WriteLine("TCPSocketHandler: Local address and port : {0}", localEP.ToString());
 
 			listener = new Socket(localEP.Address.AddressFamily,
 				SocketType.Stream, ProtocolType.Tcp);
@@ -368,7 +383,7 @@ namespace NetLog.Logging {
 
 					while( !stopping ) {
 						// reset semaphore to wait for accept to complete
-						log.info("allDone.Reset()");
+						log.fine("allDone.Reset()");
 						allDone.Reset();
 
 						// Enqueue accept
@@ -377,7 +392,7 @@ namespace NetLog.Logging {
 							listener);
 
 						// Wait on semaphore.
-						log.info("allDone.WaitOne()");
+						log.fine("allDone.WaitOne()");
 						allDone.WaitOne();
 					}
 				} catch( Exception e ) {
@@ -462,7 +477,7 @@ namespace NetLog.Logging {
 			set {
 				appName = value;
 
-				RepublishService();
+				//RepublishService();
 			}
 		}
 #endif

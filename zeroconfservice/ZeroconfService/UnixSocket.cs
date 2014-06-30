@@ -55,7 +55,7 @@ namespace ZeroconfService {
 
 		/* unmanaged stuff */
 		[StructLayout(LayoutKind.Sequential)]
-		private unsafe class fd_set {
+		private class fd_set {
 			public UInt32 fd_count;
 			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
 			public UIntPtr[] fd_array;
@@ -95,7 +95,8 @@ namespace ZeroconfService {
 			}
 		}
 
-		private unsafe class timeval {
+		private class timeval {
+			long a,b;
 		}
 
 		[DllImport("Ws2_32.dll")]

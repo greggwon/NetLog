@@ -22,6 +22,26 @@ namespace NetLog.Logging
 		public static Level OFF = new Level( "OFF", int.MaxValue );
 		public static Level ALL = new Level( "ALL", int.MinValue );
 
+		///// <summary>
+		/////  Adjust level up by the indicated number of 100 values
+		///// </summary>
+		///// <param name="l"></param>
+		///// <param name="v"></param>
+		///// <returns></returns>
+		//public static Level operator +( Level l, int v ) {
+		//	return LevelForIntValue(l.IntValue + ( v * 100 ), l.name+"+"+v);
+		//}
+
+		///// <summary>
+		///// Adjust level down by the indicated number of 100 values
+		///// </summary>
+		///// <param name="l"></param>
+		///// <param name="v"></param>
+		///// <returns></returns>
+		//public static Level operator -( Level l, int v ) {
+		//	return LevelForIntValue(l.IntValue - ( v * 100 ), l.name+"-"+v);
+		//}
+
 		private int value;
 		private string name;
 		private static bool consoleDebug;
@@ -52,6 +72,36 @@ namespace NetLog.Logging
 		public int IntValue {
 			get { return value; }
 		}
+
+		public static Level LevelForIntValue( int value ) {
+			foreach( Level l in maps.Values ) {
+				if( l.IntValue == value )
+					return l;
+			}
+			return new Level(value);
+		}
+
+		/// <summary>
+		/// Look for an existing level for the past value and map it to the passed name
+		/// if it doesn't already exist.  If the name already exists, the current
+		/// Level instance with that name is returned.
+		/// </summary>
+		/// <param name="value"></param>
+		/// <param name="newName"></param>
+		/// <returns>The existing Level or a new Level created with the name and level</returns>
+		public static Level LevelForIntValue( int value, string newName ) {
+			foreach( string key in maps.Keys ) {
+				Level l = maps[ key ];
+				if( key.Equals(newName) )
+					return l;
+				if( l.IntValue == value )
+					return l;
+			}
+			Level nl = new Level(newName, value);
+			maps[ newName ] = nl;
+			return nl;
+		}
+
 		public static Level parse( string name ) {
 			if(consoleDebug)
 				Console.WriteLine( "looking for level named \""+name+"\": "+maps.ContainsKey(name));

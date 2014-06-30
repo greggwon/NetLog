@@ -31,31 +31,43 @@ namespace NetLog.NetLogMonitor {
 		bool trimmingLines, scrollEnd = true;
 		static ListBox theEventList;
 		public MainWindow() {
-			Logger.GetLogger("").info("Logging Loaded");
-			log = new MyLogger(GetType().FullName);
-			//log.level = Level.SEVERE;
 			InitializeComponent();
-			int defPort = 12314;
-			try {
-				string port = ConfigurationManager.AppSettings[ "portNumber" ];
-				if( port != null ) {
-					defPort = int.Parse(port);
-				}
-			} catch( Exception ex ) {
-				log.severe(ex);
-			}
+			new Thread(() => {
+				Logger.GetLogger("").info("Logging Loaded");
+				log = new MyLogger(GetType().FullName);
+				try {
+					//log.level = Level.SEVERE;
+					int defPort = 12314;
+					try {
+						string port = ConfigurationManager.AppSettings[ "portNumber" ];
+						if( port != null ) {
+							defPort = int.Parse(port);
+						}
+					} catch( Exception ex ) {
+						log.severe(ex);
+					}
 
-			tcpPort.Text = "" + defPort;
-			log.info("starting up");
-			theEventList = eventList;
-			eventList.Background = Brushes.LightGray;
-			addMatch.IsEnabled = false;
-			FillColorsSelection();
-			colorChoice.SelectedIndex = 0;
-			SetMoveUpDown();
-//			Style noSpaceStyle = new Style(typeof(Paragraph));
-//			noSpaceStyle.Setters.Add(new Setter(Paragraph.MarginProperty, new Thickness(0)));
-//			eventList.Resources.Add(typeof(Paragraph), noSpaceStyle);
+					disp.Invoke(DispatcherPriority.Normal,
+						new Action(() => {
+							tcpPort.Text = "" + defPort;
+							log.info("starting up");
+							theEventList = eventList;
+							eventList.Background = Brushes.LightGray;
+							addMatch.IsEnabled = false;
+							FillColorsSelection();
+							colorChoice.SelectedIndex = 0;
+							SetMoveUpDown();
+							string title = ConfigurationManager.AppSettings[ "title" ];
+							if( title != null )
+								Title = title;
+							//			Style noSpaceStyle = new Style(typeof(Paragraph));
+							//			noSpaceStyle.Setters.Add(new Setter(Paragraph.MarginProperty, new Thickness(0)));
+							//			eventList.Resources.Add(typeof(Paragraph), noSpaceStyle);
+						}));
+				} catch( Exception ex ) {
+					log.severe(ex);
+				}
+			}).Start();
 		}
 
 		private volatile bool cancelled;
@@ -63,16 +75,21 @@ namespace NetLog.NetLogMonitor {
 		private Dispatcher disp = Dispatcher.CurrentDispatcher;
 		private void Connect_Cancel( object sender, RoutedEventArgs e ) {
 			cancelled = true;
-			Connect.Click -= Connect_Click;
-			Connect.Click -= Connect_Cancel;
-			Connect.Click += Connect_Click;
-			eventList.Background = Brushes.LightGray;
-//			eventList.IsEnabled = false;
-			try {
-				conn.Close();
-			} catch( Exception ex ) {
-				log.severe(ex);
-			}
+			disp.Invoke(DispatcherPriority.Normal,
+				new Action(() => {
+					Connect.Content = "Connect";
+					Connect.Click -= Connect_Click;
+					Connect.Click -= Connect_Cancel;
+					Connect.Click += Connect_Click;
+					eventList.Background = Brushes.LightGray;
+					//			eventList.IsEnabled = false;
+					try {
+						conn.Close();
+					} catch( Exception ex ) {
+						log.severe(ex);
+					}
+				})
+			);
 		}
 
 		private void Connect_Click( object sender, RoutedEventArgs e ) {
@@ -98,13 +115,13 @@ namespace NetLog.NetLogMonitor {
 			try {
 				conn = new TcpClient();
 				conn.SendTimeout = 5000;
-				conn.BeginConnect("localhost", port, onConnect, conn);
 				disp.Invoke(DispatcherPriority.Normal,
 					new Action(() => {
 						String str = String.Format("------- Connecting to localhost:{0} at {1}...",
 							port, DateTime.Now.ToLocalTime());
 						AppendText(str);
 					}));
+				conn.BeginConnect("localhost", port, onConnect, conn);
 			} catch( Exception ex ) {
 				log.severe(ex);
 				ThreadStart start = delegate() {
@@ -149,23 +166,35 @@ namespace NetLog.NetLogMonitor {
 				Thread th = new Thread(new ThreadStart(() => {
 					try {
 						log.fine("starting ReceiveData processing");
-						ReceiveData();
+						using( conn ) {
+							ReceiveData();
+						}
 					} catch( Exception ex ) {
-						conn.Close();
 						log.severe(ex);
-						if( !cancelled )
+						if( !cancelled ) {
+							disp.Invoke(DispatcherPriority.Normal,
+								new Action(() => {
+									Connect.IsEnabled = true;
+									Connect.Content = "Cancel";
+									Connect.Click -= Connect_Click;
+									Connect.Click -= Connect_Cancel;
+									Connect.Click += Connect_Cancel;
+									eventList.Background = Brushes.LightGreen;
+								})
+							);
 							Connect_Click(null, null);
-					} finally {
-						disp.Invoke(DispatcherPriority.Normal,
-							new Action(() => {
-								Connect.IsEnabled = true;
-								Connect.Content = "Connect";
-								Connect.Click -= Connect_Click;
-								Connect.Click -= Connect_Cancel;
-								Connect.Click += Connect_Click;
-								eventList.Background = Brushes.LightGray;
-							})
-						);
+						} else {
+							disp.Invoke(DispatcherPriority.Normal,
+								new Action(() => {
+									Connect.IsEnabled = true;
+									Connect.Content = "Cancel";
+									Connect.Click -= Connect_Click;
+									Connect.Click -= Connect_Cancel;
+									Connect.Click += Connect_Click;
+									eventList.Background = Brushes.LightGray;
+								})
+							);
+						}
 					}
 				}));
 				th.IsBackground = true;
@@ -514,12 +543,14 @@ namespace NetLog.NetLogMonitor {
 				if( color == blackAndWhite ) {
 					Foreground = Brushes.White;
 					Style s = new Style(typeof(ListBox));
-					theEventList.Style = s;
+					if( theEventList != null )
+						theEventList.Style = s;
 				} else {
 					Foreground = color.back;
 					Style s = new Style(typeof(ListBox));
 					s.Resources.Add(SystemColors.HighlightBrushKey, color.fore);
-					theEventList.Style = s;
+					if( theEventList != null )
+						theEventList.Style = s;
 				}
 			}
 

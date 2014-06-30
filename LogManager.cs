@@ -16,11 +16,11 @@ namespace NetLog.Logging
 	}
 	public class LogManager
 	{
-		private static Dictionary<string, Logger> loggers = new Dictionary<string, Logger>();
-		private static Dictionary<string, Handler> handlers = new Dictionary<string, Handler>();
-		private static Dictionary<string, Filter> filters = new Dictionary<string, Filter>();
-		private static Dictionary<string, Formatter> formatters = new Dictionary<string, Formatter>();
-		private static Dictionary<string, Level> levels = new Dictionary<string, Level>();
+		private static volatile Dictionary<string, Logger> loggers = new Dictionary<string, Logger>();
+		private static volatile Dictionary<string, Handler> handlers = new Dictionary<string, Handler>();
+		private static volatile Dictionary<string, Filter> filters = new Dictionary<string, Filter>();
+		private static volatile Dictionary<string, Formatter> formatters = new Dictionary<string, Formatter>();
+		private static volatile Dictionary<string, Level> levels = new Dictionary<string, Level>();
 		private static LogManager mgr;
 		private static bool primordialInit;
 		private static FileSystemWatcher fw;
@@ -103,8 +103,7 @@ namespace NetLog.Logging
 			}
 
 			String props = "N/A";
-			try
-			{
+			try {
 				props = System.Environment.GetEnvironmentVariable("netlog.logging.config.file");
 				if( props == null )
 					props = "logging.properties";
@@ -121,7 +120,8 @@ namespace NetLog.Logging
 				fw.EnableRaisingEvents = true;
 				if( new FileInfo( props ).Exists == false ) {
 					if( log != null && log.IsLoggable(Level.FINE) ) {
-						Console.WriteLine("The designated properties file: "+props+" does not exist" );
+						Console.WriteLine("The designated properties file: "+props+" does not exist in "+
+							Directory.GetCurrentDirectory());
 					}
 					return;
 				}
@@ -227,12 +227,32 @@ namespace NetLog.Logging
 			putPropValue(fmtr, p.Name, p.Value);
 		}
 
-		internal static void ReportExceptionToEventLog( string msg, Exception ex ) {
-			if( EventLog.SourceExists(NetLog.SOURCE) == false ) {
-				EventLog.CreateEventSource(NetLog.SOURCE, "Application");
+		public static void ReportExceptionToEventLog( string msg, Exception ex ) {
+			string str = "";
+			try {
+				if( ex != null ) {
+					if( EventLog.SourceExists(EventLogParms.Source) == false ) {
+						EventLog.CreateEventSource(EventLogParms.Source, "Application");
+					}
+					str = ExpandStackTraceFor(ex);
+				}
+				EventLog.WriteEntry(EventLogParms.Source, msg + ( ex == null ? "" : ( ": " + str ) ), EventLogEntryType.Error, 0, -1);
+			} catch( Exception exx ) {
+				Console.WriteLine("Error writing to eventLog: " + ex.Message);
+				Console.WriteLine(msg + ": " + ex.Message+"\n"+ex);
 			}
-			EventLog.WriteEntry(NetLog.SOURCE, msg + ": " + ex + "\n" + ex.StackTrace, EventLogEntryType.Error, 0, -1);
 		}
+
+		private static string ExpandStackTraceFor( Exception ex ) {
+			string str = "";
+			if( ex.InnerException != null ) {
+				str += "Inner: "+ExpandStackTraceFor(ex.InnerException);
+			}
+			str += ex.GetType().FullName + ": " + ex.Message;
+			str += ex.StackTrace;
+			return str;
+		}
+
 
 		public void ReadConfiguration( StreamReader rd ) {
 			configLoaded = true;
@@ -269,7 +289,8 @@ namespace NetLog.Logging
 				// The top level logger has a level set for itself.
 				// technically the loop above also covers this logger name
 				// but we'll do it explicitly here too just to make sure.
-				return loggers[ "" ].Level;
+				if( loggers.ContainsKey(""))
+					return loggers[ "" ].Level;
 			} catch( Exception ex ) {
 				ReportExceptionToEventLog("Can't get level for '' Logger instance", ex);
 			}
@@ -379,11 +400,16 @@ namespace NetLog.Logging
 						String level = line.Substring( lidx+(".level=".Length) );
 						Level l = Level.parse( level );
 						PutLevel(name, l);
+						if( ConsoleDebug )
+							Console.WriteLine("set level for \"" + name + "\" to " + l);
 
 						if( handlers.ContainsKey( name ) ) {
 							handlers[name].Level = l;
 						} else {
-							Logger.GetLogger( name ).Level = l;
+							Logger lg = Logger.GetLogger(name);
+							lg.Level = l;
+							if( ConsoleDebug )
+								Console.WriteLine("set logger level for \"" + lg.Name + "\" to " + lg.Level);
 						}
 					} else {
 						string[]arr = line.Split(new char[]{ '=' } );

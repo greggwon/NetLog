@@ -174,8 +174,7 @@ namespace ZeroconfService
 		/// <para>This constructor is the appropriate constructor used to publish a service.
 		/// You can not use this constructor to resolve a service.</para>
 		/// </remarks>
-		public NetService(string domain, string type, string name, int port)
-		{
+		public NetService(string domain, string type, string name, int port) {
 			mDomain = domain;
 			mType = type;
 			mName = name;
@@ -185,8 +184,7 @@ namespace ZeroconfService
 		/// <summary>
 		/// Standard Destructor.
 		/// </summary>
-		~NetService()
-		{
+		~NetService() {
 			Debug.WriteLine("NetService: Finalize");
 
 			// Call our helper method.
@@ -194,12 +192,9 @@ namespace ZeroconfService
 			Dispose(false);
 		}
 
-		private void Dispose(bool disposing)
-		{
-			if (!disposed)
-			{
-				if (disposing)
-				{
+		private void Dispose(bool disposing) {
+			if (!disposed) {
+				if (disposing) {
 					// Dispose managed resources here
 				}
 
@@ -216,8 +211,7 @@ namespace ZeroconfService
 		/// Eg: Balance a call to Publish() with a call to Stop(), StartMonitoring() with StopMonitoring().
 		/// Alternatively, the Dispose() method is available, which simply calls Stop() and StopMonitoring() on your behalf.
 		/// </summary>
-		public void Dispose()
-		{
+		public void Dispose() {
 			Debug.WriteLine("NetService: Dispose");
 
 			// Call our helper method.
@@ -231,17 +225,14 @@ namespace ZeroconfService
 		/// <summary>
 		/// Stops the currently running search or resolution.
 		/// </summary>
-		public void Stop()
-		{
-			if (resolveTimer != null)
-			{
+		public void Stop() {
+			if (resolveTimer != null) {
 				resolveTimer.Dispose();
 				resolveTimer = null;
 			}
 
 			TeardownWatchSocket(registeredServiceHandle);
-			if (registeredServiceHandle != IntPtr.Zero)
-			{
+			if (registeredServiceHandle != IntPtr.Zero) {
 				mDNSImports.DNSServiceRefDeallocate(registeredServiceHandle);
 				registeredServiceHandle = IntPtr.Zero;
 			}
@@ -250,8 +241,7 @@ namespace ZeroconfService
 			registerReplyCb = null;
 
 			TeardownWatchSocket(ipLookupQueryHandle);
-			if (ipLookupQueryHandle != IntPtr.Zero)
-			{
+			if (ipLookupQueryHandle != IntPtr.Zero) {
 				mDNSImports.DNSServiceRefDeallocate(ipLookupQueryHandle);
 				ipLookupQueryHandle = IntPtr.Zero;
 			}
@@ -262,8 +252,7 @@ namespace ZeroconfService
 		/// <summary>
 		/// Attempts to advertise the service on the network.
 		/// </summary>
-		public void Publish()
-		{
+		public void Publish() {
 			Stop();
 
 			registerReplyCb = new mDNSImports.DNSServiceRegisterReply(RegisterReply);
@@ -275,15 +264,11 @@ namespace ZeroconfService
 
             err = mDNSImports.DNSServiceRegister(out registeredServiceHandle, 0, 0, Name, Type, Domain, null, port, txtRecordLen, TXTRecordData, registerReplyCb, IntPtr.Zero);
 
-			if (err == DNSServiceErrorType.NoError)
-			{
+			if (err == DNSServiceErrorType.NoError) {
 				SetupWatchSocket(registeredServiceHandle);
-			}
-			else
-			{
+			} else {
 				Stop();
-				if (DidNotPublishService != null)
-				{
+				if (DidNotPublishService != null) {
 					DNSServiceException exception = new DNSServiceException("DNSServiceRegister", err);
 					DidNotPublishService(this, exception);
 				}
@@ -860,10 +845,24 @@ namespace ZeroconfService
 				{
 					String value = (String)kvp.Value;
 					valueData = Encoding.UTF8.GetBytes(value);
-				}
-				else
-				{
+				} else if( kvp.Value is Int32 ) {
+					byte[]data = new byte[ 4 ];
+					data[ 0 ] = (byte)((Int32)kvp.Value >> 24);
+					data[ 1 ] = (byte)((Int32)kvp.Value >> 16);
+					data[ 2 ] = (byte)((Int32)kvp.Value >> 8);
+					data[ 3 ] = (byte)( (Int32)kvp.Value & 0xff );
+					valueData = data;
+				} else if( kvp.Value is UInt32 ) {
+					byte[]data = new byte[ 4 ];
+					data[ 0 ] = (byte)( (UInt32)kvp.Value >> 24 );
+					data[ 1 ] = (byte)( (UInt32)kvp.Value >> 16 );
+					data[ 2 ] = (byte)( (UInt32)kvp.Value >> 8 );
+					data[ 3 ] = (byte)( (UInt32)kvp.Value & 0xff );
+					valueData = data;
+				} else if( kvp.Value != null ) {
 					valueData = (byte[])kvp.Value;
+				} else {
+					continue;
 				}
                 int entryLength = keyData.Length + (valueData == null? 0 : valueData.Length) + 1;
                 int usableValueDataSize = valueData.Length;

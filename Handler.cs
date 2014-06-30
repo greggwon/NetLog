@@ -5,12 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Diagnostics;
 
 namespace NetLog.Logging
 {
-	public class NetLog {
-		public const String SOURCE = "NetLog.Logging";
-	}
+
 	public abstract class Handler
 	{
 		private ErrorManager errorMgr;

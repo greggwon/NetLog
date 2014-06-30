@@ -7,19 +7,52 @@ using System.Collections;
 
 namespace NetLog.Logging
 {
+	public delegate void LogDetailsListener(Logger log);
     public class Logger
     {
 		private String name;
 		private List<Handler> handlers;
-		internal Level level;
+		internal volatile Level level;
 		private static bool consoleDebug;
-		private bool useParentHandlers = true;
+		private volatile bool useParentHandlers = true;
+		private List<LogDetailsListener>listeners = new List<LogDetailsListener>();
 
 		public bool UseParentHandlers {
 			get{ return useParentHandlers; }
 			set { useParentHandlers = value; }
 		}
 
+		/// <summary>
+		/// Add a detail listener.  Such listeners are called when the log level
+		/// changes for this instance, or a handler is added or removed.  This
+		/// allows some extra behavior of the logger to be controlled.  For interaction
+		/// with other logging/event services, the level change notification can be
+		/// used to update some external data values so that logging levels can
+		/// be adjusted appropriately there as well.
+		/// </summary>
+		/// <param name="lis"></param>
+		/// <returns>true if added, false if already a listener</returns>
+		public bool AddDetailListener( LogDetailsListener lis ) {
+			if( listeners.Contains(lis) == false ) {
+				listeners.Add(lis);
+				NotifyDetailListener(lis);
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Remove a detail listener
+		/// </summary>
+		/// <param name="lis"></param>
+		/// <returns>true if removed, false if not a registered listener</returns>
+		public bool RemoveDetailListener( LogDetailsListener lis ) {
+			if( listeners.Contains(lis) ) {
+				listeners.Remove(lis);
+				return true;
+			}
+			return false;
+		}
 		public static bool ConsoleDebug
 		{
 			get { return consoleDebug; }
@@ -39,6 +72,8 @@ namespace NetLog.Logging
 			LogManager lm = LogManager.GetLogManager( );
 			if ( consoleDebug )
 				Console.WriteLine( "Get logger \"" + name + "\": have? " + ( LogManager.Loggers.ContainsKey( name ) ? ( "YES, Level: " + LogManager.Loggers[name].Level ) : "NO" ) );
+			
+			// lock to make sure we only insert one instance
 			lock( LogManager.Loggers ) {
 				if( LogManager.Loggers.ContainsKey( name ) == false ) {
 					l = new Logger( name );
@@ -49,6 +84,18 @@ namespace NetLog.Logging
 			return l;
 		}
 
+		/// <summary>
+		/// Get the logger instance associated with the passed name.  Typically name will
+		/// be passed from a class level field initialization something like:
+		/// 
+		///		private static Logger log = Logger.GetLogger(typeof(ThisClassesName).FullName);
+		///		
+		/// The use of FullName will allow the software to create a hierarchial name
+		/// space that can be easily controlled to turn various classes and subclasses and
+		/// innerclasses logging on and off as needed.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
 		public static Logger GetLogger( String name ) {
 			Logger l;
 			// Have to do this up front because it may create logging instances
@@ -78,7 +125,9 @@ namespace NetLog.Logging
 			return l;
 		}
 
-		// Will flush all Handlers and return.
+		/// <summary>
+		/// Flush all handlers associated with this logger
+		/// </summary>
 		public void Flush() {
 			Logger logger = this;
 			while ( logger != null ) {
@@ -94,26 +143,34 @@ namespace NetLog.Logging
 		}
 
 		public Level Level {
-			set { 
+			set {
+				if( value.IntValue == Level.ALL.IntValue ) {
+					Console.WriteLine("All Level Set For logger=" + name);
+				}
 				this.level = value;
 				if ( consoleDebug )
 					Console.WriteLine( Name + " level now " + value );
+				NotifyDetailListeners();
 			}
 			get { 
 				Level l = this.level;
-#if false
-				Logger lg = this;
-				while ( l == null && lg != null ) {
-					if ( consoleDebug )
-						Console.WriteLine( "logger: " + lg.Name + ", level: " + ( l == null ? "null" : l.ToString( ) ) );
-					lg = lg.Parent;
-					if ( lg != null )
-						l = lg.level;
-				}
-				if ( consoleDebug )
-					Console.WriteLine( "logger: " + lg.Name + ", level: " + ( l == null ? "null" : l.ToString( ) ) ); 
-#endif
-				return l == null ? LogManager.GetLogManager().LevelOfLogger(name) : l;
+				return l == null ? 
+					(LogManager.GetLogManager().LevelOfLogger(name)) :
+					l;
+			}
+		}
+
+		private void NotifyDetailListeners() {
+			foreach( LogDetailsListener l in listeners ) {
+				NotifyDetailListener(l);
+			}
+		}
+		private void NotifyDetailListener( LogDetailsListener l ) {
+			try {
+				l(this);
+			} catch( Exception ex ) {
+				LogManager.ReportExceptionToEventLog(string.Format(
+					"Error in LogDetailsListener: {0}: {1}", l, ex.Message), ex);
 			}
 		}
 
@@ -141,10 +198,12 @@ namespace NetLog.Logging
 
 		public void AddHandler( Handler h ) {
 			handlers.Add(h );
+			NotifyDetailListeners();
 		}
 
 		public void RemoveHandler( Handler h ) {
 			handlers.Remove( h );
+			NotifyDetailListeners();
 		}
 
 		public List<Handler> GetHandlers() {
@@ -165,15 +224,11 @@ namespace NetLog.Logging
 		public void finest ( string msg, Exception ex ) {
 			log( Level.FINEST, msg, ex );
 		}
-		//public void finest ( string msg, Exception ex, object param ) {
-		//	log( Level.FINEST, msg, ex, param );
-		//}
+
 		public void finest ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.FINEST, msg, ex, parms );
 		}
-		//public void finest ( string msg, object param ) {
-		//	log( Level.FINEST, msg, param );
-		//}
+
 		public void finest ( string msg, params object[] parms ) {
 			log( Level.FINEST, msg, parms );
 		}
@@ -187,15 +242,11 @@ namespace NetLog.Logging
 		public void finer ( string msg, Exception ex ) {
 			log( Level.FINER, msg, ex );
 		}
-		//public void finer ( string msg, Exception ex, object param ) {
-		//	log( Level.FINER, msg, ex, param );
-		//}
+
 		public void finer ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.FINER, msg, ex, parms );
 		}
-		//public void finer ( string msg, object param ) {
-		//	log( Level.FINER, msg, param );
-		//}
+
 		public void finer ( string msg, params object[ ] parms ) {
 			log( Level.FINER, msg, parms );
 		}
@@ -203,10 +254,6 @@ namespace NetLog.Logging
 		public void entering( Type sourceClass, object sourceMethod ) {
 			entering(sourceClass.FullName, sourceMethod.ToString());
 		}
-
-		//public void entering( Type sourceClass, object sourceMethod, object param ) {
-		//	entering(sourceClass.FullName, sourceMethod.ToString(), param);
-		//}
 
 		public void entering( Type sourceClass, object sourceMethod, params object[] param ) {
 			entering(sourceClass.FullName, sourceMethod.ToString(), param);
@@ -218,14 +265,7 @@ namespace NetLog.Logging
 			rec.SourceMethodName = sourceMethod;
 			log(rec);
 		}
-		//public void entering(string sourceClass, string sourceMethod, object param)
-		//{
-		//	LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
-		//	rec.SourceClassName = sourceClass;
-		//	rec.SourceMethodName = sourceMethod;
-		//	rec.Parameters = new object[] { param };
-		//	log(rec);
-		//}
+
 		public void entering(string sourceClass, string sourceMethod, params object[] param)
 		{
 			LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
@@ -241,14 +281,7 @@ namespace NetLog.Logging
 			rec.SourceMethodName = sourceMethod;
 			log(rec);
 		}
-		//public void exiting(string sourceClass, string sourceMethod, object param)
-		//{
-		//	LogRecord rec = new LogRecord(Level.FINER, "EXIT");
-		//	rec.SourceClassName = sourceClass;
-		//	rec.SourceMethodName = sourceMethod;
-		//	rec.Parameters = new object[] { param };
-		//	log(rec);
-		//}
+
 		public void exiting(string sourceClass, string sourceMethod, params object[] param)
 		{
 			LogRecord rec = new LogRecord(Level.FINER, "EXIT");
@@ -272,21 +305,16 @@ namespace NetLog.Logging
 		public void fine ( string msg ) {
 			log( Level.FINE, msg );
 		}
-		public void fine ( string msg, Exception ex ) {
-			log( Level.FINE, msg, ex );
+		public void fine( string msg, Exception ex ) {
+			log(Level.FINE, msg, ex);
 		}
-		//public void fine ( string msg, Exception ex, object param ) {
-		//	log( Level.FINE, msg, ex, param );
-		//}
+
 		public void fine( string msg, params object[] parms ) {
 			log(Level.FINE, msg, parms);
 		}
 		public void fine( string msg, Exception ex, params object[] parms ) {
 			log( Level.FINE, msg, ex, parms );
 		}
-		//public void fine ( string msg, object param ) {
-		//	log( Level.FINE, msg, param );
-		//}
 
 		public void config ( Exception ex ) {
 			log( Level.CONFIG, ex );
@@ -294,18 +322,14 @@ namespace NetLog.Logging
 		public void config ( string msg ) {
 			log( Level.CONFIG, msg );
 		}
-		public void config ( string msg, Exception ex ) {
-			log( Level.CONFIG, msg, ex );
+		public void config( string msg, Exception ex ) {
+			log(Level.CONFIG, msg, ex);
 		}
-		//public void config ( string msg, Exception ex, object param ) {
-		//	log( Level.CONFIG, msg, ex, param );
-		//}
+
 		public void config ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.CONFIG, msg, ex, parms );
 		}
-		//public void config ( string msg, object param ) {
-		//	log( Level.CONFIG, msg, param );
-		//}
+
 		public void config ( string msg, params object[ ] parms ) {
 			log( Level.CONFIG, msg, parms );
 		}
@@ -319,15 +343,11 @@ namespace NetLog.Logging
 		public void info ( string msg, Exception ex ) {
 			log( Level.INFO, msg, ex );
 		}
-		//public void info ( string msg, Exception ex, object param ) {
-		//	log( Level.INFO, msg, ex, param );
-		//}
+
 		public void info ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.INFO, msg, ex, parms );
 		}
-		//public void info ( string msg, object param ) {
-		//	log( Level.INFO, msg, param );
-		//}
+
 		public void info ( string msg, params object[ ] parms ) {
 			log( Level.INFO, msg, parms );
 		}
@@ -341,15 +361,11 @@ namespace NetLog.Logging
 		public void warning ( string msg, Exception ex ) {
 			log( Level.WARNING, msg, ex );
 		}
-		//public void warning ( string msg, Exception ex, object param ) {
-		//	log( Level.WARNING, msg, ex, param );
-		//}
+
 		public void warning ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.WARNING, msg, ex, parms );
 		}
-		//public void warning ( string msg, object param ) {
-		//	log( Level.WARNING, msg, param );
-		//}
+
 		public void warning ( string msg, params object[ ] parms ) {
 			log( Level.WARNING, msg, parms );
 		}
@@ -363,15 +379,11 @@ namespace NetLog.Logging
 		public void severe ( string msg, Exception ex ) {
 			log( Level.SEVERE, msg, ex );
 		}
-		//public void severe ( string msg, Exception ex, object param ) {
-		//	log( Level.SEVERE, msg, ex, param );
-		//}
+
 		public void severe ( string msg, Exception ex, params object[ ] parms ) {
 			log( Level.SEVERE, msg, ex, parms );
 		}
-		//public void severe ( string msg, object param ) {
-		//	log( Level.SEVERE, msg, param );
-		//}
+
 		public void severe ( string msg, params object[ ] parms ) {
 			log( Level.SEVERE, msg, parms );
 		}
@@ -391,11 +403,6 @@ namespace NetLog.Logging
 			rec.Thrown = ex;
 			log( rec );
 		}
-		//public void log ( Level level, string msg, object param ) {
-		//	LogRecord rec = new LogRecord( level, msg );
-		//	rec.Parameters = new object[] { param };
-		//	log( rec );
-		//}
 
 		public void log ( Level level, string msg, Exception ex, params object[ ] parms ) {
 			LogRecord rec = new LogRecord( level, msg );
@@ -404,13 +411,6 @@ namespace NetLog.Logging
 			log( rec );
 		}
 
-		//public void log ( Level level, string msg, Exception ex, object parm ) {
-		//	LogRecord rec = new LogRecord( level, msg );
-		//	rec.Parameters = new object[]{ parm };
-		//	rec.Thrown = ex;
-		//	log( rec );
-		//}
-
 		public void log ( Level level, string msg, params object[ ] parms )
 		{
 			LogRecord rec = new LogRecord( level, msg );
@@ -418,7 +418,7 @@ namespace NetLog.Logging
 			log (rec) ;
 		}
 		/// <summary>
-		/// D
+		/// 
 		/// </summary>
 		/// <param name="level"></param>
 		/// <returns></returns>
@@ -433,24 +433,27 @@ namespace NetLog.Logging
 
 		public void log( LogRecord rec )
 		{
-			// stop now if not loggable
-			if (rec.Level.IntValue < this.Level.IntValue || this.Level == Level.OFF)
-			{
-				return;
-			}
-			if ( consoleDebug )
-				Console.WriteLine( "record level " + rec.Level + ", logger level: " + this.Level + ", logging" );
 			rec.LoggerName = name;
 			Logger logger = this;
+			Level lowest = logger.Level;
+
 			while( logger != null ) {
-				if (consoleDebug)
-					Console.WriteLine("\"" + Name + "\" handlers: " + handlers.Count);
+				if( consoleDebug )
+					Console.WriteLine("\"" + logger.Name + "\" handlers: " + logger.handlers.Count);
+				if( consoleDebug )
+					Console.WriteLine("record level " + rec.Level + ", logger level: " + logger.Level + ", logging");
+				if( rec.Level.IntValue < lowest.IntValue || lowest == Level.OFF ) {
+					return;
+				}
+				//if( lowest.IntValue > logger.Level.IntValue ) {
+				//	lowest = logger.Level;
+				//}
 				if( logger.GetHandlers() != null ) {
 					foreach( Handler h in new List<Handler>(logger.GetHandlers()) ) {
 						h.Publish(rec);
 					}
 				}
-				if( UseParentHandlers == false )
+				if( logger.UseParentHandlers == false )
 					break;
 				logger = logger.Parent;
 			}

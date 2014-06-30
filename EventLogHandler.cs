@@ -61,7 +61,7 @@ namespace NetLog.Logging {
 				Console.WriteLine(msg+": "+ex);
 				Console.WriteLine(ex.StackTrace);
 			} else {
-				EventLog.WriteEntry(NetLog.SOURCE, msg + ": " + ex + "\n" + ex.StackTrace, EventLogEntryType.Error);
+				EventLog.WriteEntry(EventLogParms.Source, msg + ": " + ex + "\n" + ex.StackTrace, EventLogEntryType.Error);
 			}
 		}
 
