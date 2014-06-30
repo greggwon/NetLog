@@ -4,16 +4,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{33561235-51D3-4D39-8B8D-62201B1F779D}</ProjectGuid>
+    <ProjectGuid>{F42822A8-0CF1-4E76-B5B0-74CB79BFA5D9}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Testing</RootNamespace>
-    <AssemblyName>Testing</AssemblyName>
+    <RootNamespace>NetLog.Logging.Testing</RootNamespace>
+    <AssemblyName>NetLog.Logging.Testing</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -30,6 +30,18 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Prod-Debug|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Prod-Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>NetLog.Logging.Testing.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Practices.EnterpriseLibrary.Common">
@@ -73,12 +85,49 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\fieldgateway-workspace\lufkin.iwellscada.FieldGateway\CommunicationLayer\CommunicationLayer.csproj">
+      <Project>{4ba66573-6909-4e4d-a5d6-f00ead548e47}</Project>
+      <Name>CommunicationLayer</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\fieldgateway-workspace\lufkin.iwellscada.FieldGateway\DataCollection\IDataCollectorAccess\iDataCollectorAccess\iDataCollectorAccess.csproj">
+      <Project>{c2f0b9f1-4718-433d-96b0-19c760b6af52}</Project>
+      <Name>iDataCollectorAccess</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\fieldgateway-workspace\lufkin.iwellscada.FieldGateway\FieldDeviceAccess\FieldDeviceAccess.csproj">
+      <Project>{5590ca1a-f7db-4d8e-9fba-fa33c9f1260c}</Project>
+      <Name>FieldDeviceAccess</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\fieldgateway-workspace\lufkin.iwellscada.FieldGateway\Publisher\Publisher.csproj">
+      <Project>{048902d8-b41f-48af-a9cd-1b4cd907bf97}</Project>
+      <Name>Publisher</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\fieldDataCollector\FieldDataCollectorService\FieldDataCollectorService.csproj">
+      <Project>{27453782-3898-4066-aabe-d53976c13f5b}</Project>
+      <Name>FieldDataCollectorService</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\fieldDataCollector\FieldDataCollector\FieldDataCollector.csproj">
+      <Project>{348405cc-278e-4023-9035-fae0b9ae28ed}</Project>
+      <Name>FieldDataCollector</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\fieldDataCollector\OPCUAServerCompatibility\OPCUAServerCompatibility.csproj">
+      <Project>{c4333fe5-5cd5-40df-961d-ca27c3df25b2}</Project>
+      <Name>OPCUAServerCompatibility</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\fieldDataCollector\OPCUAStatusReadtypes\OPCUAStatusReadtypes.csproj">
+      <Project>{b5dcf81c-ecbc-4435-8deb-0db231d97870}</Project>
+      <Name>OPCUAStatusReadtypes</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\DataCollectors\OPCUA\OPCUAClient\OPCUAClient.csproj">
+      <Project>{3dae661f-0e81-4fa2-b18a-efb1344da8e0}</Project>
+      <Name>OPCUAClient</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\DataItems\DataItems.csproj">
       <Project>{2127e49d-10f5-45d4-8959-f6e53505c4a6}</Project>
       <Name>DataItems</Name>
@@ -99,6 +148,10 @@
       <Project>{8469fce2-6daf-4f0b-8dd8-e0dd503cda36}</Project>
       <Name>LWMPolling</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\LWMWriteService\LWMWriteService.csproj">
+      <Project>{15b3e0d2-6217-493a-a690-158c497f5318}</Project>
+      <Name>LWMWriteService</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\ModbusPolling\ModbusPolling.csproj">
       <Project>{4e9343ea-729a-469b-93ef-897cb78bf7cc}</Project>
       <Name>ModbusPolling</Name>
@@ -106,6 +159,22 @@
     <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\ThreadUtil\ThreadUtil.csproj">
       <Project>{7d753786-8e44-4006-bcea-0b5c2343d75f}</Project>
       <Name>ThreadUtil</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ReadTypeAnalysis\ReadTypeAnalysis.csproj">
+      <Project>{1a353450-ee5b-405e-baf0-911bdc2b7841}</Project>
+      <Name>ReadTypeAnalysis</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ScadaPolling\ScadaPolling.csproj">
+      <Project>{19b8e8c0-1362-43a2-b4b5-d2b12cbc1b58}</Project>
+      <Name>ScadaPolling</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwellscada-workspace\lufkin.iwellscada.v1_0\FieldGatewayAccess\FieldGatewayAccess.csproj">
+      <Project>{f4a250d3-74e5-4f21-8033-adcb84333cd3}</Project>
+      <Name>FieldGatewayAccess</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\iwellscada-workspace\lufkin.iwellscada.v1_0\model\LWMReadTypeSync\LWMReadTypeSync.csproj">
+      <Project>{54cc4a79-4d5d-43cb-892a-f0fc1c5d0bcf}</Project>
+      <Name>LWMReadTypeSync</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\iwellscada-workspace\lufkin.iwellscada.v1_0\model\model.csproj">
       <Project>{2722022d-4404-4138-ae33-0da1c49f4874}</Project>
@@ -116,6 +185,7 @@
     <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\lwm.xml">
       <Link>lwm.xml</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </Content>
     <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\polling.xml">
       <Link>polling.xml</Link>
@@ -129,6 +199,9 @@
       <Link>schedules.xml</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
