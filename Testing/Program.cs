@@ -4,10 +4,13 @@ using System.Data.Common;
 using System.IO;
 using System.Diagnostics;
 using System.Globalization;
+using NetLog.Logging;
 
-
-
-namespace Testing.Level1.Level2 {
+namespace NetLog.Logging.Testing {
 	class Program  {
+		public static void Main(string[] args) {
+			Logger log = Logger.GetLogger("iWellScada.logging.kern");
+			log.info("kern logging");
+		}
 	}
 }
