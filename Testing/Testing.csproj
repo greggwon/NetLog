@@ -168,18 +168,6 @@
       <Project>{19b8e8c0-1362-43a2-b4b5-d2b12cbc1b58}</Project>
       <Name>ScadaPolling</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\iwellscada-workspace\lufkin.iwellscada.v1_0\FieldGatewayAccess\FieldGatewayAccess.csproj">
-      <Project>{f4a250d3-74e5-4f21-8033-adcb84333cd3}</Project>
-      <Name>FieldGatewayAccess</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\iwellscada-workspace\lufkin.iwellscada.v1_0\model\LWMReadTypeSync\LWMReadTypeSync.csproj">
-      <Project>{54cc4a79-4d5d-43cb-892a-f0fc1c5d0bcf}</Project>
-      <Name>LWMReadTypeSync</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\iwellscada-workspace\lufkin.iwellscada.v1_0\model\model.csproj">
-      <Project>{2722022d-4404-4138-ae33-0da1c49f4874}</Project>
-      <Name>model</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\lwm.xml">
