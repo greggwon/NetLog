@@ -69,12 +69,8 @@
                         <ColumnDefinition Width="193*"/>
                     </Grid.ColumnDefinitions>
                     <ListBox x:Name="eventList" Margin="0,0,-0.4,0.8" 
-            				PreviewMouseDown="mouseSelected"
-                               
-            				MouseLeftButtonDown="mouseSelected"
-            				MouseLeftButtonUp="mouseDeselected"
-            				MouseMove="mouseMoving"
-            				SelectionMode="Multiple" KeyUp="eventList_KeyDown" 
+
+            				SelectionMode="Extended" KeyUp="eventList_KeyDown" 
             				SelectionChanged="eventList_SelectionChanged" Grid.ColumnSpan="3"/>
                 </Grid>
 
