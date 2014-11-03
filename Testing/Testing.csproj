@@ -116,17 +116,9 @@
       <Project>{348405cc-278e-4023-9035-fae0b9ae28ed}</Project>
       <Name>FieldDataCollector</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\iwelllink-workspace\fieldDataCollector\OPCUAServerCompatibility\OPCUAServerCompatibility.csproj">
-      <Project>{c4333fe5-5cd5-40df-961d-ca27c3df25b2}</Project>
-      <Name>OPCUAServerCompatibility</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\iwelllink-workspace\fieldDataCollector\OPCUAStatusReadtypes\OPCUAStatusReadtypes.csproj">
       <Project>{b5dcf81c-ecbc-4435-8deb-0db231d97870}</Project>
       <Name>OPCUAStatusReadtypes</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\DataCollectors\OPCUA\OPCUAClient\OPCUAClient.csproj">
-      <Project>{3dae661f-0e81-4fa2-b18a-efb1344da8e0}</Project>
-      <Name>OPCUAClient</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\DataItems\DataItems.csproj">
       <Project>{2127e49d-10f5-45d4-8959-f6e53505c4a6}</Project>

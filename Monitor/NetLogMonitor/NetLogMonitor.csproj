@@ -137,6 +137,7 @@
     <None Include="app.config">
       <SubType>Designer</SubType>
     </None>
+    <None Include="logging.properties" />
     <None Include="NetLogMonitor_TemporaryKey.pfx" />
     <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
