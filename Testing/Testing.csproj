@@ -120,14 +120,6 @@
       <Project>{b5dcf81c-ecbc-4435-8deb-0db231d97870}</Project>
       <Name>OPCUAStatusReadtypes</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\DataItems\DataItems.csproj">
-      <Project>{2127e49d-10f5-45d4-8959-f6e53505c4a6}</Project>
-      <Name>DataItems</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\DeviceAccess\DeviceAccess.csproj">
-      <Project>{843d4597-c20c-4124-8709-272876c82d30}</Project>
-      <Name>DeviceAccess</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\ELAMDriver\ELAMDriver.csproj">
       <Project>{f8cf2501-363d-4eba-b915-6afed536a7a7}</Project>
       <Name>ELAMDriver</Name>
