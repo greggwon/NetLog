@@ -69,9 +69,8 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>L:\distributions\3rdParty\Newtonsoft\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="RabbitMQ.Client, Version=3.1.3.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>L:\distributions\3rdParty\RabbitMQ\RabbitMQ.Client.dll</HintPath>
+    <Reference Include="RabbitMQ.Client">
+      <HintPath>..\..\distributions\3rdParty\RabbitMQ\3.2.2\RabbitMQ.Client.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -152,25 +151,6 @@
       <Project>{19b8e8c0-1362-43a2-b4b5-d2b12cbc1b58}</Project>
       <Name>ScadaPolling</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\lwm.xml">
-      <Link>lwm.xml</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <SubType>Designer</SubType>
-    </Content>
-    <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\polling.xml">
-      <Link>polling.xml</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\records.xml">
-      <Link>records.xml</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="L:\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\XML\schedules.xml">
-      <Link>schedules.xml</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
