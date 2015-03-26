@@ -2,6 +2,7 @@
 using NetLog.Logging;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Configuration;
 using System.IO;
 using System.Linq;
@@ -19,6 +20,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Collections.ObjectModel;
 
 namespace NetLog.NetLogMonitor {
 	/// <summary>
@@ -30,8 +32,11 @@ namespace NetLog.NetLogMonitor {
 		Boolean dirty;
 		bool trimmingLines, scrollEnd = true;
 		static ListBox theEventList;
+		public ObservableCollection<LogEntry> LogEntries { get; set; }
+
 		public MainWindow() {
 			InitializeComponent();
+			DataContext = LogEntries = new ObservableCollection<LogEntry>();
 			new Thread(() => {
 				Logger.GetLogger("").info("Logging Loaded");
 				log = new MyLogger(GetType().FullName);
@@ -232,15 +237,24 @@ namespace NetLog.NetLogMonitor {
 			int cnt;
 			NetworkStream stream = conn.GetStream();
 //			int cntt =0;
-			while( !cancelled && (cnt = stream.Read(data, 0, data.Length) ) > 0 ) {
+			while( !cancelled ) {// &&  (cnt = stream.Read(data, 0, data.Length) ) > 0 ) {
 				//Thread.Sleep(250);
 				//data = new byte[] { (byte)'T', (byte)'h', (byte)'i', (byte)'s', (byte)' ', (byte)'i', (byte)'s', (byte)' ', (byte)'i', (byte)'t',(byte)'\n' };
 				//cnt = data.Length;
 				try {
-					string s = System.Text.Encoding.UTF8.GetString(data, 0, cnt);
+					Thread.Sleep( 400 );
+					string s = "10/12/2015 10:22:12 INFO [#1321] This is this message\r\n";
+					//string s = System.Text.Encoding.UTF8.GetString( data, 0, cnt );
 					s = s.Replace("\r", "");
 					s = s.Replace("\n\n", "\n");
 
+					foreach( string line in s.Split( '\n' ) ) {
+						if( line.Length == 0 )
+							continue;
+						Dispatcher.BeginInvoke( (Action)( () => 					
+								LogEntries.Add( new LogEntry( line ) )
+							) );
+					}
 					disp.Invoke(DispatcherPriority.Normal,
 						new Action(() => {
 							AppendText(s);
@@ -903,6 +917,17 @@ namespace NetLog.NetLogMonitor {
 		internal void finest( string str, params object[] args ) {
 			if( isLoggable(Level.FINEST) )
 				h.Publish(new LogRecord(Level.FINEST, str, args));
+		}
+	}
+
+	public class PropertyChangedBase : INotifyPropertyChanged {
+		public event PropertyChangedEventHandler PropertyChanged;
+
+		protected virtual void OnPropertyChanged( string propertyName ) {
+			Application.Current.Dispatcher.BeginInvoke( (Action)( () => {
+				PropertyChangedEventHandler handler = PropertyChanged;
+				if( handler != null ) handler( this, new PropertyChangedEventArgs( propertyName ) );
+			} ) );
 		}
 	}
 }
