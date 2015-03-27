@@ -6,6 +6,9 @@ using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace ZeroconfService {
+	/// <summary>
+	/// 
+	/// </summary>
 	public class UnixSocket {
 		private UIntPtr mSocket;
 
@@ -13,21 +16,44 @@ namespace ZeroconfService {
 		private delegate bool AsyncPollCaller( int microSeconds, SelectMode mode );
 		private AsyncPollCaller caller;
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="socket"></param>
 		public UnixSocket( UIntPtr socket ) {
 			mSocket = socket;
 
 			caller = new AsyncPollCaller(Poll);
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="microSeconds"></param>
+		/// <param name="mode"></param>
+		/// <param name="callback"></param>
+		/// <param name="state"></param>
+		/// <returns></returns>
 		public virtual IAsyncResult BeginPoll( int microSeconds, SelectMode mode, AsyncCallback callback, Object state ) {
 			IAsyncResult result = caller.BeginInvoke(microSeconds, mode, callback, state);
 			return result;
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="asyncResult"></param>
+		/// <returns></returns>
 		public virtual bool EndPoll( IAsyncResult asyncResult ) {
 			return caller.EndInvoke(asyncResult);
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="microSeconds"></param>
+		/// <param name="mode"></param>
+		/// <returns></returns>
 		protected bool Poll( int microSeconds, SelectMode mode ) {
 			fd_set readFDs = null;
 			fd_set writeFDs = null;
@@ -54,6 +80,9 @@ namespace ZeroconfService {
 		}
 
 		/* unmanaged stuff */
+		/// <summary>
+		/// 
+		/// </summary>
 		[StructLayout(LayoutKind.Sequential)]
 		private class fd_set {
 			public UInt32 fd_count;
@@ -95,16 +124,38 @@ namespace ZeroconfService {
 			}
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
 		private class timeval {
 			long a,b;
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="fd"></param>
+		/// <param name="set"></param>
+		/// <returns></returns>
 		[DllImport("Ws2_32.dll")]
 		private static extern Int32 __WSAFDIsSet( UIntPtr fd, fd_set set );
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="nfds"></param>
+		/// <param name="readFDs"></param>
+		/// <param name="writeFDs"></param>
+		/// <param name="exceptFDs"></param>
+		/// <param name="timeout"></param>
+		/// <returns></returns>
 		[DllImport("Ws2_32.dll")]
 		private static extern Int32 select( Int32 nfds, fd_set readFDs, fd_set writeFDs, fd_set exceptFDs, timeval timeout );
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
 		[DllImport("Ws2_32.dll")]
 		private static extern Int32 WSAGetLastError();
 	}
@@ -114,6 +165,11 @@ namespace ZeroconfService {
 		private bool inPoll;
 		private bool stopping;
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="socket"></param>
+		/// <param name="sdRef"></param>
 		public WatchSocket( UIntPtr socket, IntPtr sdRef )
 			: base(socket) {
 			this.sdRef = sdRef;
@@ -121,14 +177,28 @@ namespace ZeroconfService {
 			this.stopping = false;
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
 		public IntPtr SDRef {
 			get { return sdRef; }
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
 		public bool InPoll {
 			get { return inPoll; }
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="microSeconds"></param>
+		/// <param name="mode"></param>
+		/// <param name="callback"></param>
+		/// <param name="state"></param>
+		/// <returns></returns>
 		public override IAsyncResult BeginPoll( int microSeconds, SelectMode mode, AsyncCallback callback, Object state ) {
 			if( inPoll )
 				throw new ApplicationException("Attempting to begin a new poll while already polling.");
@@ -140,11 +210,19 @@ namespace ZeroconfService {
 			return base.BeginPoll(microSeconds, mode, callback, state);
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="asyncResult"></param>
+		/// <returns></returns>
 		public override bool EndPoll( IAsyncResult asyncResult ) {
 			inPoll = false;
 			return base.EndPoll(asyncResult);
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
 		public bool Stopping {
 			get { return stopping; }
 			set { stopping = value; }

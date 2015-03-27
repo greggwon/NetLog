@@ -77,30 +77,102 @@ namespace ZeroconfService
 	/// </summary>
 	public enum DNSServiceErrorType : int
 	{
+		/// <summary>
+		/// 
+		/// </summary>
 		NoError           = 0,
-		Unknown           = -65537,  /* 0xFFFE FFFF */
-		NoSuchName        = -65538,
-		NoMemory          = -65539,
-		BadParam          = -65540,
-		BadReference      = -65541,
-		BadState          = -65542,
-		BadFlags          = -65543,
-		Unsupported       = -65544,
-		NotInitialized    = -65545,
+		/// <summary>
+		/// 0xFFFE FFFF
+		/// </summary>
+		Unknown = -65537,  /* 0xFFFE FFFF */
+		/// <summary>
+		/// 
+		/// </summary>
+		NoSuchName = -65538,
+		/// <summary>
+		/// 
+		/// </summary>
+		NoMemory = -65539,
+		/// <summary>
+		/// 
+		/// </summary>
+		BadParam = -65540,
+		/// <summary>
+		/// 
+		/// </summary>
+		BadReference = -65541,
+		/// <summary>
+		/// 
+		/// </summary>
+		BadState = -65542,
+		/// <summary>
+		/// 
+		/// </summary>
+		BadFlags = -65543,
+		/// <summary>
+		/// 
+		/// </summary>
+		Unsupported = -65544,
+		/// <summary>
+		/// 
+		/// </summary>
+		NotInitialized = -65545,
+		/// <summary>
+		/// 
+		/// </summary>
 		AlreadyRegistered = -65547,
-		NameConflict      = -65548,
-		Invalid           = -65549,
-		Firewall          = -65550,
-		Incompatible      = -65551,  /* client library incompatible with daemon */
+		/// <summary>
+		/// 
+		/// </summary>
+		NameConflict = -65548,
+		/// <summary>
+		/// 
+		/// </summary>
+		Invalid = -65549,
+		/// <summary>
+		/// 
+		/// </summary>
+		Firewall = -65550,
+		/// <summary>
+		/// client library incompatible with daemon
+		/// </summary>
+		Incompatible = -65551,  /* client library incompatible with daemon */
+		/// <summary>
+		/// 
+		/// </summary>
 		BadInterfaceIndex = -65552,
-		Refused           = -65553,
-		NoSuchRecord      = -65554,
-		NoAuth            = -65555,
-		NoSuchKey         = -65556,
-		NATTraversal      = -65557,
-		DoubleNAT         = -65558,
-		BadTime           = -65559,
-		Timeout           = -72007  /* NSNetServiceError */
+		/// <summary>
+		/// 
+		/// </summary>
+		Refused = -65553,
+		/// <summary>
+		/// 
+		/// </summary>
+		NoSuchRecord = -65554,
+		/// <summary>
+		/// 
+		/// </summary>
+		NoAuth = -65555,
+		/// <summary>
+		/// 
+		/// </summary>
+		NoSuchKey = -65556,
+		/// <summary>
+		/// 
+		/// </summary>
+		NATTraversal = -65557,
+		/// <summary>
+		/// 
+		/// </summary>
+		DoubleNAT = -65558,
+		/// <summary>
+		/// 
+		/// </summary>
+		BadTime = -65559,
+		/// <summary>
+		///  NSNetServiceError
+		/// </summary>
+		Timeout = -72007  /* NSNetServiceError */
 	}
 
 
