@@ -14,6 +14,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
@@ -26,15 +27,48 @@ namespace NetLog.NetLogMonitor {
 	/// </summary>
 	public partial class MainWindow: Window {
 		TcpClient conn;
-		MyLogger log;
+		static Logger log;
 		Boolean dirty;
 		bool trimmingLines, scrollEnd = true;
 		static ListBox theEventList;
 		public MainWindow() {
 			InitializeComponent();
+			eventList.FontSize = 13;
+			System.Drawing.RectangleF rectF = new System.Drawing.RectangleF( 0, 0, 40, 40 );
+			System.Drawing.Bitmap bitmap = new System.Drawing.Bitmap( 40, 40, System.Drawing.Imaging.PixelFormat.Format24bppRgb );
+			System.Drawing.Graphics g = System.Drawing.Graphics.FromImage( bitmap );
+			g.FillRectangle( System.Drawing.Brushes.AliceBlue, 0, 0, 40, 40 );
+			g.DrawRectangle( new System.Drawing.Pen( System.Drawing.Brushes.Black, 2 ), 1, 1, 38, 18 );
+			g.FillEllipse( System.Drawing.Brushes.LightSalmon, 1, 28, 10, 10 );
+			g.FillEllipse( System.Drawing.Brushes.LightSalmon, 15, 28, 10, 10 );
+			g.FillEllipse( System.Drawing.Brushes.LightSalmon, 29, 28, 10, 10 );
+			int w = 5;
+			string tl = ConfigurationManager.AppSettings[ "InstanceName" ];
+			for( int s = 5; s < 32; ++s ) {
+				System.Drawing.Font f = new System.Drawing.Font( "Arial", s );
+				System.Drawing.SizeF sz = g.MeasureString( tl, f );
+				if( sz.Width > 38 || sz.Height > 18 )
+					break;
+				w = s;
+			}
+			System.Drawing.Font tf = new System.Drawing.Font( "Arial", w );
+			System.Drawing.SizeF tsz = g.MeasureString( tl, tf );
+			g.DrawString( tl,
+				tf,
+				System.Drawing.Brushes.Black,
+				new System.Drawing.PointF( (38-tsz.Width)/2, (18-tsz.Height)/2 ) );
+
+			IntPtr hBitmap = bitmap.GetHbitmap();
+
+			ImageSource wpfBitmap =
+				Imaging.CreateBitmapSourceFromHBitmap(
+					hBitmap, IntPtr.Zero, Int32Rect.Empty,
+					BitmapSizeOptions.FromEmptyOptions() );
+			this.Icon = wpfBitmap;
+
 			new Thread(() => {
 				Logger.GetLogger("").info("Logging Loaded");
-				log = new MyLogger(GetType().FullName);
+				log = Logger.GetLogger(GetType().FullName);
 				try {
 					//log.level = Level.SEVERE;
 					int defPort = 12314;
@@ -108,7 +142,7 @@ namespace NetLog.NetLogMonitor {
 						log.severe(ex);
 						tcpPort.Background = Brushes.Red;
 					}
-					eventList.Background = Brushes.GreenYellow;
+					eventList.Background = Brushes.Yellow;
 				})
 			);
 
@@ -179,7 +213,7 @@ namespace NetLog.NetLogMonitor {
 									Connect.Click -= Connect_Click;
 									Connect.Click -= Connect_Cancel;
 									Connect.Click += Connect_Cancel;
-									eventList.Background = Brushes.LightGreen;
+									eventList.Background = Brushes.Yellow;
 								})
 							);
 							Connect_Click(null, null);
@@ -846,12 +880,32 @@ namespace NetLog.NetLogMonitor {
 		private void searchBox_TextChanged( object sender, TextChangedEventArgs e ) {
 
 		}
+
+		private void FontMenu_Click( object sender, RoutedEventArgs e ) {
+			MenuItem itm = (MenuItem)e.Source;
+			log.info( "Font select: {0}", itm.Name );
+			MenuItem fonts = (MenuItem)sender;
+			foreach( MenuItem i in fonts.Items ) {
+				i.IsChecked = false;
+			}
+			itm.IsChecked = true;
+			if( itm.Name.Equals( "smallFont" ) ) {
+				eventList.FontSize = 10;
+			} else if( itm.Name.Equals( "mediumFont" ) ) {
+				eventList.FontSize = 13;
+			} else if( itm.Name.Equals( "largeFont" ) ) {
+				eventList.FontSize = 16;
+			} else if( itm.Name.Equals( "exlargeFont" ) ) {
+				eventList.FontSize = 19;
+			}  
+		}
 	}
 	public class MyLogger {
 		Handler h;
 		public Level level { get; set; }
 		public MyLogger( string name ) {
 			h = new ConsoleHandler();
+			//h = new FileHandler("C:/temp2/log");
 			level = Level.INFO;
 			( (StreamFormatter)h.Formatter ).Eol = "\n";
 		}
