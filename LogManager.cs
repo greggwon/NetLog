@@ -21,11 +21,11 @@ namespace NetLog.Logging
 		private static volatile Dictionary<string, Filter> filters = new Dictionary<string, Filter>();
 		private static volatile Dictionary<string, Formatter> formatters = new Dictionary<string, Formatter>();
 		private static volatile Dictionary<string, Level> levels = new Dictionary<string, Level>();
-		private static LogManager mgr;
+		private static volatile LogManager mgr;
 		private static bool primordialInit;
-		private static FileSystemWatcher fw;
+		private static volatile FileSystemWatcher fw;
 		private static Logger log;
-
+		DateTime? lastModifiedConfig;
 		private static Boolean configLoaded;
 
 		static LogManager() {
@@ -34,6 +34,7 @@ namespace NetLog.Logging
 				mgr = (LogManager)Activator.CreateInstance( Type.GetType( instName ) );
 			} else {
 				mgr = new LogManager();
+				mgr.ReadConfiguration();
 			}
 
 			// this will force configuration load, and errors there can not expect "log" to be initialized yet.
@@ -50,14 +51,16 @@ namespace NetLog.Logging
 		}
 
 		private void OnChangedConfig ( object source, FileSystemEventArgs args ) {
-			if( log != null && log.IsLoggable(Level.FINE) )
-				Console.WriteLine( "logging.properties file changed: " + args.FullPath );
+			Console.WriteLine( "logging.properties file "+args.ChangeType+": " + args.FullPath );
 			lock ( loggers ) {
-				mgr.ReadConfiguration( );
+				if( args.ChangeType == WatcherChangeTypes.Changed || args.ChangeType == WatcherChangeTypes.Created ) {
+					mgr.ReadConfiguration();
+				}
 			}			
 		}
 
 		public void ReadConfiguration() {
+			Console.WriteLine( "Reading Configuration: " + Environment.StackTrace );
 			string initName = System.Environment.GetEnvironmentVariable( "netlog.logging.config.class" );
 			string initAsmb = System.Environment.GetEnvironmentVariable( "netlog.logging.config.assembly" );
 			if ( initName != null ) {
@@ -104,45 +107,39 @@ namespace NetLog.Logging
 
 			String props = "N/A";
 			try {
-				props = System.Environment.GetEnvironmentVariable("netlog.logging.config.file");
+				props = System.Environment.GetEnvironmentVariable( "netlog.logging.config.file" );
 				if( props == null )
 					props = "logging.properties";
 				if( fw != null ) {
-					if( log != null && log.IsLoggable(Level.FINE) )
-						Console.WriteLine( "Dropping existing watcher for: " + fw.Path );
+					//					if( log != null && log.IsLoggable(Level.FINE) )
+					Console.WriteLine( "Dropping existing watcher for: " + fw.Path );
 					fw.EnableRaisingEvents = false;
 				}
 				fw = new FileSystemWatcher();
-				fw.Path = new FileInfo(props).DirectoryName;
-				fw.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
-				fw.Changed += new FileSystemEventHandler(OnChangedConfig);
+				fw.Path = new FileInfo( props ).DirectoryName;
+				fw.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;// | NotifyFilters.DirectoryName;
+				fw.Changed += new FileSystemEventHandler( OnChangedConfig );
 				fw.Filter = new FileInfo( props ).Name;
-				fw.EnableRaisingEvents = true;
 				if( new FileInfo( props ).Exists == false ) {
-					if( log != null && log.IsLoggable(Level.FINE) ) {
-						Console.WriteLine("The designated properties file: "+props+" does not exist in "+
-							Directory.GetCurrentDirectory());
+					if( log != null && log.IsLoggable( Level.FINE ) ) {
+						Console.WriteLine( "The designated properties file: " + props + " does not exist in " +
+							Directory.GetCurrentDirectory() );
 					}
 					return;
 				}
 				Exception ex = null;
 				bool readIt = false;
-				for( int i = 0; i < 3; ++i ) {
+				for( int i = 0; !readIt && i < 3; ++i ) {
 					try {
-						StreamReader sr = new StreamReader( props );
-						Console.WriteLine("Opening "+props+" returned "+sr );
-						try {
+						using( StreamReader sr = new StreamReader( props ) ) {
+							Console.WriteLine( "Opening " + props + " returned " + sr );
 							configLoaded = true;
-							readStream(sr);
+							readStream( sr );
 							readIt = true;
-							break;
-						} finally {
-							if( sr != null ) {
-								sr.Close();
-							}
 						}
-					} catch (Exception e) {
-						ReportExceptionToEventLog("Exception opening configuration from " + props + ", attempt #" + ( i + 1 ), e);
+						break;
+					} catch( Exception e ) {
+						ReportExceptionToEventLog( "Exception opening configuration from " + props + ", attempt #" + ( i + 1 ), e );
 						configLoaded = false;
 						if( ex == null )
 							ex = e;
@@ -152,14 +149,17 @@ namespace NetLog.Logging
 					configLoaded = false;
 					Console.WriteLine( "The Logging properties file, \"" + props + "\", could not be read!" );
 					Console.WriteLine( "# SEVERE # " + ex.Message + ": " + ex.StackTrace );
-					ReportExceptionToEventLog("The Logging properties file, \"" + props + "\", could not be read!", ex);
+					ReportExceptionToEventLog( "The Logging properties file, \"" + props + "\", could not be read!", ex );
 				}
-			} catch (Exception e) {
+			} catch( Exception e ) {
 				configLoaded = false;
-				ReportExceptionToEventLog("The Logging properties file, \"" + props + "\", could not be read!", e);
-				Console.WriteLine("The Logging properties file, \""+props+"\", could not be read!");
-				Console.WriteLine("# SEVERE # "+e.Message+": "+e.StackTrace);
-			}			
+				ReportExceptionToEventLog( "The Logging properties file, \"" + props + "\", could not be read!", e );
+				Console.WriteLine( "The Logging properties file, \"" + props + "\", could not be read!" );
+				Console.WriteLine( "# SEVERE # " + e.Message + ": " + e.StackTrace );
+			} finally {
+				if( fw != null )
+					fw.EnableRaisingEvents = true;
+			}
 		}
 
 		private void ActivateConfigurationSection( NetLogConfigurationSection sect ) {
@@ -231,14 +231,14 @@ namespace NetLog.Logging
 			string str = "";
 			try {
 				if( ex != null ) {
-					if( EventLog.SourceExists(EventLogParms.Source) == false ) {
+					if( EventLog.SourceExists(EventLogParms.Source, ".") == false ) {
 						EventLog.CreateEventSource(EventLogParms.Source, "Application");
 					}
 					str = ExpandStackTraceFor(ex);
 				}
 				EventLog.WriteEntry(EventLogParms.Source, msg + ( ex == null ? "" : ( ": " + str ) ), EventLogEntryType.Error, 0, -1);
 			} catch( Exception exx ) {
-				Console.WriteLine("Error writing to eventLog: " + ex.Message);
+				Console.WriteLine("Error writing to eventLog for exception: " + exx );
 				Console.WriteLine(msg + ": " + ex.Message+"\n"+ex);
 			}
 		}
@@ -502,6 +502,8 @@ namespace NetLog.Logging
 		}
 
 		public static LogManager GetLogManager() {
+			if( mgr != null )
+				return mgr;
 			lock( loggers ) {
 				if ( mgr == null ) {
 					mgr = new LogManager();

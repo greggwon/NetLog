@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security;
 using System.Text;
 
 namespace NetLog.Logging {
@@ -19,11 +20,18 @@ namespace NetLog.Logging {
 			set {
 				source = value;
 				try {
-					if( EventLog.SourceExists(source) == false ) {
+					if( EventLog.SourceExists(source, ".") == false ) {
 						EventLog.CreateEventSource(source, Logfile);
 					}
+				} catch( SecurityException ex ) {
+					Console.WriteLine( ex );
+					try {
+						EventLog.CreateEventSource( source, Logfile );
+					} catch( Exception exx ) {
+						Console.WriteLine( "Can not create source after security exception: "+ exx );
+					}
 				} catch( Exception ex ) {
-					Console.WriteLine(ex);
+					Console.WriteLine( ex );
 				}
 			}
 		}

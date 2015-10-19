@@ -25,13 +25,9 @@ namespace NetLog.Logging
 		}
 
 		public string Filename {
-			get { return name; }
-			set { 
-				name = value;
-				if( outf != null ) {
-					Flush();
-					Close();
-				}
+			get { return Name; }
+			set {
+				Name = value;
 			}	
 		}
 
@@ -125,11 +121,8 @@ namespace NetLog.Logging
 			Formatter = new StreamFormatter( false, true, false );
 		}
 
-		public FileHandler() {
+		public FileHandler() : this( "logging.out", 5, 20 *1024*1024 ) {
 			Formatter = new StreamFormatter( false, true, false );
-			Generations = 5;
-			Name = "logging.out";
-			limit = 20 * 1024 * 1024;
 		}
 
 		protected virtual void shuffleDown() {
@@ -168,12 +161,39 @@ namespace NetLog.Logging
 			string rname = name;
 			StreamWriter outp = null;
 			int cnt = 1;
+			FileInfo fi = new FileInfo(rname);
+			bool explicitDir = false;
+			if( rname.ToUpper().Replace('/', '\\').StartsWith(fi.Directory.Root.Name.ToUpper()) ) {
+				explicitDir = true;
+			}
+			if( !explicitDir) {
+				string newrname = "";
+				try {
+					string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+					string file = GetType().Assembly.Location;
+					string app = System.IO.Path.GetFileNameWithoutExtension(file);
+					newrname = appData + "\\" + app + "\\" + rname;
+					new FileInfo(newrname).Directory.Create();
+					rname = newrname;
+				} catch( Exception ex ) {
+					LogManager.ReportExceptionToEventLog(this.GetType().FullName+": Can not log to directory \"" + newrname + "\": " + ex.Message, ex);
+				}
+			}
+
 			do {
 
 				try {
-					outp = new StreamWriter( rname + ".0", append );
+					outp = new StreamWriter( rname + (gens>1 ? ".0" : ""), append );
 					outp.AutoFlush = false;
-					finfo = new FileInfo( rname+".0" );
+					finfo = new FileInfo( rname+ (gens>1 ? ".0" : "") );
+				} catch( DirectoryNotFoundException ex ) {
+					LogManager.ConsoleWriteLine("Error opening log file (name=\"" + rname + "\") for writing: " + ex.Message + "\n" + ex.StackTrace, typeof(FileHandler).FullName);
+					Exception ee = ex.InnerException;
+					while( ee != null ) {
+						LogManager.ConsoleWriteLine("InnerException: " + ee.Message + "\n" + ee.StackTrace, typeof(FileHandler).FullName);
+						ee = ee.InnerException;
+					}
+					new FileInfo(rname).Directory.Create();
 				} catch( IOException ex ) {
 
 					LogManager.ConsoleWriteLine("Error opening log file (name=\"" + rname + "\") for writing: " + ex.Message + "\n" + ex.StackTrace, typeof(FileHandler).FullName);
@@ -210,7 +230,7 @@ namespace NetLog.Logging
 		}
 
 		protected virtual bool CheckNewFile() {
-			return( outf == null || new FileInfo( name+".0" ).Length > limit );
+			return( outf == null || new FileInfo( name+(gens>1 ? ".0" : "") ).Length > limit );
 		}
 
 		/// <summary>

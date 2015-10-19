@@ -197,11 +197,9 @@ namespace NetLog.Logging {
 	}
 
 	internal class ListenerManager : IDisposable {
-		private Socket listener;
 		internal List<Socket>remoteSockets;
 		private bool stopping;
-		private TCPSocketHandler hand;
-		private AutoResetEvent allDone = new AutoResetEvent(false);
+		private volatile TCPSocketHandler hand;
 		private string addr;
 #if BonjourEnabled
 		private string type, name;
@@ -218,10 +216,11 @@ namespace NetLog.Logging {
 
 		void Dispose( bool all ) {
 			if( listener != null )
-				listener.Dispose();
+				listener.Stop();
 		}
 
 		public ListenerManager( TCPSocketHandler handler ) {
+			Console.Write( "Creating new listenermanager for: " + handler );
 			remoteSockets = new List<Socket>();
 			stopping = false;
 			hand = handler;
@@ -271,37 +270,40 @@ namespace NetLog.Logging {
 
 			try {
 				Socket listener = (Socket)ar.AsyncState;
-				Socket remoteSocket = listener.EndAccept(ar);
+				Socket remoteSocket = listener.EndAccept( ar );
+				Console.WriteLine( "Accept Callback results: " + ar );
 				// Turn off Nagle to get data through on each log message.
 				remoteSocket.NoDelay = false;
 				lock( remoteSockets ) {
 					try {
-						hand.Publish(new LogRecord(hand.Level, "have handlers: " + remoteSockets.Count));
+						hand.Publish( new LogRecord( hand.Level, "have handlers: " + remoteSockets.Count ) );
 						if( remoteSockets.Count == 0 ) {
-							hand.Publish(new LogRecord(hand.Level, "have history Records: " + hand.history.Count));
+							hand.Publish( new LogRecord( hand.Level, "have history Records: " + hand.history.Count ) );
 							foreach( LogRecord rec in hand.history ) {
-								String str = hand.Formatter.format(rec) + "\r";
+								String str = hand.Formatter.format( rec ) + "\r";
 								try {
-									byte[] msg = System.Text.Encoding.UTF8.GetBytes(str);
-									remoteSocket.Send(msg);
+									byte[] msg = System.Text.Encoding.UTF8.GetBytes( str );
+									remoteSocket.Send( msg );
 								} catch( Exception ex ) {
-									LogManager.ReportExceptionToEventLog("Cannot write message to client " + remoteSocket + " : " + ex.Message, ex);
+									LogManager.ReportExceptionToEventLog( "Cannot write message to client " + remoteSocket + " : " + ex.Message, ex );
 									break;
 								}
 							}
 						}
 					} finally {
-						remoteSockets.Add(remoteSocket);
-						WatchLevels(hand, remoteSocket);
+						remoteSockets.Add( remoteSocket );
+						WatchLevels( hand, remoteSocket );
 					}
 				}
+				Console.WriteLine( "Accepted new connection, reporting: " + remoteSocket );
 			} catch( Exception ex ) {
+				Console.WriteLine( "ACC: " + ex );
 				// we don't clean up remoteSockets here because it will happen on the next
 				// I/O attempt on the socket using exception handling there.
-				LogManager.ReportExceptionToEventLog("Can't process socket connection", ex);
+				LogManager.ReportExceptionToEventLog( "Can't process socket connection", ex );
 			} finally {
-				log.fine("allDone.Set()");
-				allDone.Set();
+				log.fine( "allDone.Set()" );
+				listener.Next();
 			}
 		}
 
@@ -315,7 +317,7 @@ namespace NetLog.Logging {
 			Thread th = new Thread(() => {
 				h.Publish(new LogRecord(h.Level, "Processing telnet controls: "+handler));
 				int cnt;
-				byte[] data = new byte[10];
+				byte[] data = new byte[1024];
 				try {
 					while( !stopping && handler.Connected && ( cnt = handler.Receive(data) ) > 0 ) {
 						String str = "";
@@ -324,30 +326,24 @@ namespace NetLog.Logging {
 								str += " ";
 							str += data[ i ].ToString("x02");
 						}
-						if( data[ 0 ] == 0xff ) {
-							h.Publish(new LogRecord(h.Level, "Saw telnet control: " + str));
-							continue;
+						switch( data[ 0 ] ) {
+							case 0xff:
+								h.Publish(new LogRecord(h.Level, "Saw telnet control: " + str));
+								continue;
+						//	case NetLogProto.SET_LOGGER_CONFIG:
+						//	case NetLogProto.QUERY_LOGGERS:
+						//	case NetLogProto.QUERY_LOGGER_HANDLERS:
+						//	case NetLogProto.QUERY_HANDLER_FORMATTER:
+						//	case NetLogProto.ADD_LOGGER_HANDLER:
+						//	case NetLogProto.REVOVE_LOGGER_HANDLER:
+						//	case NetLogProto.SET_HANDLER_PROPERTIES:
+						//	case NetLogProto.QUERY_HANDLER_PROPERTIES:
+						//	case NetLogProto.SET_HANDLER_FORMATTER:
+						//	case NetLogProto.SET_LOG_LEVEL:
+						//		break;
 						}
+					
 						h.Publish(new LogRecord(h.Level, "Saw unexpected received data: " + str));
-						for( int i = 0; i < cnt; ++i ) {
-							Level l = h.Level;
-							if( l == Level.ALL )
-								l = Level.FINEST;
-							if( l.IntValue > Level.SEVERE.IntValue + 100 ) {
-								l = new Level("Level_" + ( Level.SEVERE.IntValue + 100 ), Level.SEVERE.IntValue + 100);
-							}
-							if( data[ i ] == '+' ) {
-								h.Level = new Level("Level_" + ( l.IntValue + 100 ), l.IntValue + 100);
-								h.Publish(new LogRecord(h.Level, "Log Level Changed to " + h.Level));
-								break;
-							} else if( data[ i ] == '=' ) {
-								h.Publish(new LogRecord(h.Level, "Log Level is Currently " + h.Level));
-							} else if( data[ i ] == '-' ) {
-								h.Level = new Level("Level_" + ( l.IntValue - 100 ), l.IntValue - 100);
-								h.Publish(new LogRecord(h.Level, "Log Level Changed to " + h.Level));
-								break;
-							}
-						}
 					}
 				} catch( Exception ex ) {
 					LogManager.ReportExceptionToEventLog("Error listening to socket: " + listener, ex);
@@ -359,6 +355,7 @@ namespace NetLog.Logging {
 		IPEndPoint localEP;
 
 		internal void StartListening() {
+			Console.WriteLine( "StartListening Called: " + Environment.StackTrace );
 			if( HostAddress == null ) {
 				localEP = new IPEndPoint(IPAddress.Any, PortNumber);
 			} else {
@@ -370,37 +367,91 @@ namespace NetLog.Logging {
 					break;
 				}
 			}
+			listener = new ListenerThread();
+			listener.Start( localEP, acceptCallback );
 
 			Console.WriteLine("TCPSocketHandler: Local address and port : {0}", localEP.ToString());
+		}
+		private volatile ListenerThread listener;
+		public delegate void AcceptCallback( IAsyncResult ar );
+		public class ListenerThread {
+			private volatile Socket listener;
+			private volatile bool stopping;
+			private AutoResetEvent allDone = new AutoResetEvent( false );
+			private AutoResetEvent hasStoppped = new AutoResetEvent( false );
+			public void Stop() {
+				Console.WriteLine( "ListenerThread was stopped" );
+				stopping = true;
+				allDone.Set();
+				hasStoppped.WaitOne();
+			}
 
-			listener = new Socket(localEP.Address.AddressFamily,
-				SocketType.Stream, ProtocolType.Tcp);
-			stopping = false;
-			Thread th = new Thread(new ThreadStart(() => {
-				try {
-					listener.Bind(localEP);
-					listener.Listen(10);
+			public void Start( IPEndPoint localEP, AcceptCallback acceptCallback ) {
+				listener = new Socket( localEP.Address.AddressFamily,
+					SocketType.Stream, ProtocolType.Tcp );
+				stopping = false;
+				hasStoppped.Reset();
+				Thread th = new Thread( new ThreadStart( () => {
+					try {
+						Console.WriteLine( "Binding to: " + localEP );
+						listener.Bind( localEP );
+						listener.Listen( 10 );
 
-					while( !stopping ) {
-						// reset semaphore to wait for accept to complete
-						log.fine("allDone.Reset()");
-						allDone.Reset();
+						while( !stopping ) {
+							try {
+								//							Console.WriteLine( "Starting accept loop" );
+								// reset semaphore to wait for accept to complete
+								log.fine( "allDone.Reset()" );
+								Console.WriteLine( "Resettting allDone" );
+								allDone.Reset();
 
-						// Enqueue accept
-						listener.BeginAccept(
-							new AsyncCallback(acceptCallback),
-							listener);
+								Console.WriteLine( "Starting Accept" );
+								// Enqueue accept
+								listener.BeginAccept(
+									new AsyncCallback( acceptCallback ),
+									listener );
 
-						// Wait on semaphore.
-						log.fine("allDone.WaitOne()");
-						allDone.WaitOne();
+								// Wait on semaphore.
+								Console.WriteLine( "Waiting for allDone" );
+								log.fine( "allDone.WaitOne()" );
+								allDone.WaitOne();
+								Console.WriteLine( "Completed for allDone: " + stopping );
+							} catch( Exception ex ) {
+								Console.WriteLine( "NN: " + ex.ToString() );
+								listener.Close();
+								listener = null;
+							}
+						}
+					} catch( Exception e ) {
+						Console.WriteLine( "NS: " + e.ToString() );
+						try {
+							if( listener != null )
+								listener.Close();
+						} catch( Exception exx ) {
+							Console.WriteLine( "BEX: " + exx );
+						} finally {
+							listener = null;
+						}
+						LogManager.ReportExceptionToEventLog( "Error Processing Connections to socket: " + listener, e );
+					} finally {
+						if( listener != null ) {
+							try {
+								listener.Close();
+							} catch( Exception ex ) {
+								Console.WriteLine( "SSEX: " + ex );
+							}
+						}
+						Console.WriteLine( "Exiting handler listen/accept thread" );
+						hasStoppped.Set();
 					}
-				} catch( Exception e ) {
-					LogManager.ReportExceptionToEventLog("Error Processing Connections to socket: " + listener, e);
-				}
-			}));
-			th.IsBackground = true;
-			th.Start();
+				} ) );
+				th.IsBackground = true;
+				th.Start();
+			}
+
+			internal void Next() {
+				allDone.Set();
+			}
 		}
 		
 		/// <summary>
@@ -409,25 +460,30 @@ namespace NetLog.Logging {
 		public void Close() {
 			stopping = true;
 
+			Console.WriteLine( "Closing ServerManager ListenerThread: " + listener );
 			try {
 				if( listener != null )
-					listener.Close();
+					listener.Stop();
 			} catch( Exception ex ) {
-				LogManager.ReportExceptionToEventLog("Can't close listener", ex);
+				LogManager.ReportExceptionToEventLog( "Can't close listener", ex );
+			} finally {
+				listener = null;
 			}
-			listener = null;
 
 			try {
 				foreach( Socket h in remoteSockets ) {
 					try {
+						Console.WriteLine( "Closing socket: " + h );
 						h.Close();
 					} catch( Exception ex ) {
-						LogManager.ReportExceptionToEventLog("Cannot write message to client " + h + ": " + ex, ex);
+						LogManager.ReportExceptionToEventLog( "Cannot write message to client " + h + ": " + ex, ex );
 					}
 				}
 			} finally {
 				remoteSockets.Clear();
 			}
+
+			Console.WriteLine( "Closed ServerManager: " + this );
 		}
 
 		public string HostAddress {
@@ -446,8 +502,10 @@ namespace NetLog.Logging {
 				return port;
 			}
 			set {
-				port = value;
-				reconnect("port change");
+				if( port != value ) {
+					port = value;
+					reconnect( "port change" );
+				}
 			}
 		}
 
@@ -459,6 +517,7 @@ namespace NetLog.Logging {
 			} catch( Exception ex ) {
 				LogManager.ReportExceptionToEventLog("Error shutting down TCPSocketHandler for "+why, ex);
 			}
+			Console.WriteLine( "Reconnecting: " + why+": "+Environment.StackTrace );
 			try {
 				StartListening();
 #if BonjourEnabled

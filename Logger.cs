@@ -203,6 +203,11 @@ namespace NetLog.Logging
 
 		public void RemoveHandler( Handler h ) {
 			handlers.Remove( h );
+			try {
+				h.Close();
+			} catch( Exception ex ) {
+				LogManager.ReportExceptionToEventLog( ex.Message, ex );
+			}
 			NotifyDetailListeners();
 		}
 
@@ -210,7 +215,12 @@ namespace NetLog.Logging
 			return handlers;
 		}
 
-		private Logger( string name ) {
+		/// <summary>
+		/// WARNING: Only use this constructor for private Logger instances which you wish to not be visible
+		/// for remote administration.
+		/// </summary>
+		/// <param name="name"></param>
+		public Logger( string name ) {
 			this.name = name;
 			this.handlers = new List<Handler>();
 		}
