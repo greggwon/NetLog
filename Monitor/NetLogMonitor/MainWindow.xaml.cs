@@ -559,7 +559,6 @@ namespace NetLog.NetLogMonitor {
 		private object MatchPatternFor( string ss, ColorDescription color ) {
 			MatchPatternItem mp;
 			if( cache.Count > 0 ) {
-				System.GC.AddMemoryPressure(40);
 				mp = cache[ cache.Count - 1 ];
 				cache.RemoveAt( cache.Count - 1 );
 				mp.Content = mp.text = ss;
@@ -575,7 +574,6 @@ namespace NetLog.NetLogMonitor {
 		private object MatchPatternFor( string ss ) {
 			MatchPatternItem mp;
 			if( cache.Count > 0 ) {
-				System.GC.AddMemoryPressure( 40 );
 				mp = cache[ cache.Count - 1 ];
 				cache.RemoveAt( cache.Count - 1 );
 				mp.Content = mp.text = ss;
@@ -591,7 +589,6 @@ namespace NetLog.NetLogMonitor {
 		private object MatchPatternFor( string text, ColorDescription color, int index, ListBox patternList ) {
 			MatchPatternItem mp;
 			if( cache.Count > 0 ) {
-				System.GC.AddMemoryPressure( 40 );
 				mp = cache[ cache.Count - 1 ];
 				cache.RemoveAt( cache.Count - 1 );
 				mp.text = text;
@@ -962,7 +959,7 @@ namespace NetLog.NetLogMonitor {
 				eventList.FontSize = 16;
 			} else if( itm.Name.Equals( "exlargeFont" ) ) {
 				eventList.FontSize = 19;
-			}  
+			}
 		}
 	}
 	public class MyLogger {

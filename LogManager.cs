@@ -60,7 +60,8 @@ namespace NetLog.Logging
 		}
 
 		public void ReadConfiguration() {
-			Console.WriteLine( "Reading Configuration: " + Environment.StackTrace );
+			if( false )
+				Console.WriteLine( "Reading Configuration: " + Environment.StackTrace );
 			string initName = System.Environment.GetEnvironmentVariable( "netlog.logging.config.class" );
 			string initAsmb = System.Environment.GetEnvironmentVariable( "netlog.logging.config.assembly" );
 			if ( initName != null ) {
@@ -109,10 +110,12 @@ namespace NetLog.Logging
 			try {
 				props = System.Environment.GetEnvironmentVariable( "netlog.logging.config.file" );
 				if( props == null )
+					props = ConfigurationManager.AppSettings["netlog.logging.config.file"];
+				if( props == null )
 					props = "logging.properties";
 				if( fw != null ) {
-					//					if( log != null && log.IsLoggable(Level.FINE) )
-					Console.WriteLine( "Dropping existing watcher for: " + fw.Path );
+					if( log != null && log.IsLoggable(Level.FINE) )
+						Console.WriteLine( "Dropping existing watcher for: " + fw.Path );
 					fw.EnableRaisingEvents = false;
 				}
 				fw = new FileSystemWatcher();
