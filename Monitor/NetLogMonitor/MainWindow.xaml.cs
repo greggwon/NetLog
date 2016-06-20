@@ -262,7 +262,7 @@ namespace NetLog.NetLogMonitor {
 		}
 
 		private void ReceiveData() {
-			byte[] data = new byte[ 10240 ];
+			byte[] data = new byte[ 102400 ];
 			int cnt;
 			NetworkStream stream = conn.GetStream();
 //			int cntt =0;
@@ -270,21 +270,31 @@ namespace NetLog.NetLogMonitor {
 				//Thread.Sleep(250);
 				//data = new byte[] { (byte)'T', (byte)'h', (byte)'i', (byte)'s', (byte)' ', (byte)'i', (byte)'s', (byte)' ', (byte)'i', (byte)'t',(byte)'\n' };
 				//cnt = data.Length;
-				try {
-					string s = System.Text.Encoding.UTF8.GetString(data, 0, cnt);
-					s = s.Replace("\r", "");
-					s = s.Replace("\n\n", "\n");
+				if( IsMarked( data ) ) {
+					try {
+						string s = System.Text.Encoding.UTF8.GetString( data, 0, cnt );
+						s = s.Replace( "\r", "" );
+						s = s.Replace( "\n\n", "\n" );
 
-					disp.Invoke(DispatcherPriority.Normal,
-						new Action(() => {
-							AppendText(s);
-						}));
-					
-				} catch( Exception ex ) {
-					log.severe(ex);
+						disp.Invoke( DispatcherPriority.Normal,
+							new Action( () => {
+								AppendText( s );
+							} ) );
+
+					} catch( Exception ex ) {
+						log.severe( ex );
+					}
 				}
 			}
-	
+		}
+
+		/// <summary>
+		/// Checks for the 0xf00dbeef signature in the first 4 bytes
+		/// </summary>
+		/// <param name="data"></param>
+		/// <returns></returns>
+		private bool IsMarked( byte[] data ) {
+			return( data[ 0 ] == 0xf0 && data[ 1 ] == 0x0d && data[ 2 ] == 0xbe && data[ 3 ] == 0xef ) ;
 		}
 
 		private void SelectEntireList() {
