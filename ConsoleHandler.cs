@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,13 +18,14 @@ namespace NetLog.Logging
 		}
 		public ConsoleHandler()
 		{
-			Formatter = new StreamFormatter(false, true, false);
+			WaitCount = 100;
 		}
 		public override void Close() {
 		}
 		public override void Flush() {
 			Console.Out.Flush();
 		}
+		Queue recs = new Queue();
 		public override void Publish( LogRecord rec ) {
 			// stop now if not loggable
 			if (consoleDebug)
@@ -34,14 +36,22 @@ namespace NetLog.Logging
 				return;
 			}
 
-			lock( this ) {
+			Enqueue( rec );
+		}
+
+		StringBuilder b = new StringBuilder();
+		protected override void PushBoundry() {
+			Console.Write( b.ToString() );
+			b.Clear();			
+		}
+
+		protected override void Push( LogRecord rec ) {
+			if( HavePrefix )
+				b.Append( Prefix );
 				rec.SequenceNumber = NextSequence;
-				if( HavePrefix )
-					Console.Write( Prefix );
-				Console.Write(this.Formatter.format(rec));
+			b.Append( Formatter.format( rec ) );
 				if ( HaveSuffix )
-					Console.Write( Suffix );
+				b.Append( Suffix );
 			}
 		}
 	}
-}
