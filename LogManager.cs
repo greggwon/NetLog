@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Configuration;
 using System.Threading;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 namespace NetLog.Logging
 {
 	public class LoggingConfiguration {
@@ -16,11 +17,11 @@ namespace NetLog.Logging
 	}
 	public class LogManager
 	{
-		private static volatile Dictionary<string, Logger> loggers = new Dictionary<string, Logger>();
-		private static volatile Dictionary<string, Handler> handlers = new Dictionary<string, Handler>();
-		private static volatile Dictionary<string, Filter> filters = new Dictionary<string, Filter>();
-		private static volatile Dictionary<string, Formatter> formatters = new Dictionary<string, Formatter>();
-		private static volatile Dictionary<string, Level> levels = new Dictionary<string, Level>();
+		private static volatile ConcurrentDictionary<string, Logger> loggers = new ConcurrentDictionary<string, Logger>();
+		private static volatile ConcurrentDictionary<string, Handler> handlers = new ConcurrentDictionary<string, Handler>();
+		private static volatile ConcurrentDictionary<string, Filter> filters = new ConcurrentDictionary<string, Filter>();
+		private static volatile ConcurrentDictionary<string, Formatter> formatters = new ConcurrentDictionary<string, Formatter>();
+		private static volatile ConcurrentDictionary<string, Level> levels = new ConcurrentDictionary<string, Level>();
 		private static volatile LogManager mgr;
 		private static bool primordialInit;
 		private static volatile FileSystemWatcher fw;
@@ -39,7 +40,6 @@ namespace NetLog.Logging
 
 			// this will force configuration load, and errors there can not expect "log" to be initialized yet.
 			log = Logger.GetLogger( "NetLog.Logging.LogManager" );
-			log.level = Level.INFO;
 		}
 
 		public bool ConsoleDebug {
@@ -47,7 +47,7 @@ namespace NetLog.Logging
 			set { log.Level = value ? Level.FINE : Level.INFO ; }
 		}
 
-		internal static Dictionary<string,Logger> Loggers {
+		internal static IDictionary<string,Logger> Loggers {
 			get { return loggers; }
 		}
 
@@ -61,7 +61,7 @@ namespace NetLog.Logging
 		}
 
 		public void ReadConfiguration() {
-			if( log != null && log.IsLoggable( Level.FINE ) )
+			if( false )
 				Console.WriteLine( "Reading Configuration: " + Environment.StackTrace );
 			string initName = System.Environment.GetEnvironmentVariable( "netlog.logging.config.class" );
 			string initAsmb = System.Environment.GetEnvironmentVariable( "netlog.logging.config.assembly" );
@@ -172,7 +172,7 @@ namespace NetLog.Logging
 				string cls = fmt.ClassName;
 				string asmb = fmt.AssemblyName;
 				Formatter fmtr = (Formatter)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, cls).Unwrap();
-				formatters.Add(name, fmtr);
+				formatters[name] = fmtr;
 				foreach( PropertyConfiguration p in fmt.Properties ) {
 					SetPropertyOn(fmtr, p);
 				}
@@ -182,7 +182,7 @@ namespace NetLog.Logging
 				string cls = filtcfg.ClassName;
 				string asmb = filtcfg.AssemblyName;
 				Filter filt = (Filter)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, cls).Unwrap();
-				filters.Add(name, filt);
+				filters[name] = filt;
 				foreach( PropertyConfiguration p in filtcfg.Properties ) {
 					SetPropertyOn(filt, p);
 				}
@@ -197,12 +197,12 @@ namespace NetLog.Logging
 					hndlr.Formatter = formatters[fmt];
 				} else if( fmt.Equals("streamFormatter") ) {
 					hndlr.Formatter = new StreamFormatter(false, true, false);
-					formatters.Add(fmt, hndlr.Formatter);
+					formatters[fmt] = hndlr.Formatter;
 				}
 				foreach( PropertyConfiguration p in hnd.Properties ) {
 					SetPropertyOn(hndlr, p);
 				}
-				handlers.Add(name, hndlr);
+				handlers[name] = hndlr;
 			}
 			foreach( LoggerConfiguration lg in sect.Loggers ) {
 				string name = lg.Name;
@@ -263,38 +263,61 @@ namespace NetLog.Logging
 			readStream(rd);
 		}
 
+		internal class CachedLevel {
+			DateTime when;
+			internal Level level;
+			public CachedLevel( Level l ) {
+				level = l;
+				when = DateTime.UtcNow;
+			}
+			public bool Expired {
+				get {
+					return DateTime.UtcNow - when > new TimeSpan( 0, 0, 10 );
+				}
+			}
+		}
+
+		private ConcurrentDictionary<string,CachedLevel> cachedLevels = new ConcurrentDictionary<string, CachedLevel>();
+
 		public Level LevelOfLogger( string name ) {
 			if( levels.ContainsKey(name) ) {
 				return levels[ name ];
 			}
+			if( cachedLevels.ContainsKey( name ) && cachedLevels[ name ].Expired == false )
+				return cachedLevels[ name ].level;
 			//"logger.name.more.other"
 
 			//	"logger", "name", "more", "other"
-			string[]arr = name.Split('.');
-			for( int i = arr.Length - 2; i >= 0; --i ) {
-				string nm = "";
-				for( int j = 0; j <= i; ++j ) {
-					if( j > 0 )
-						nm += ".";
-					nm += arr[ j ];
-				}
+			string nm = name;
+			//string[]arr = name.Split('.');
+			while( nm.LastIndexOf('.') >= 0 ) {
+				int idx = nm.LastIndexOf( '.' );
+				nm = nm.Substring( 0, idx - 1 );
+
 				// If there is a physical Logger at this level, use any
 				// level explicitly set there.
 				if( loggers.ContainsKey(nm) && loggers[ nm ].level != null ) {
-					return loggers[ nm ].level;
+					Level l = loggers[ nm ].level;
+					cachedLevels[ nm ] = new CachedLevel( l );
+					return l;
 				}
 				// If there is a property set Level at a particular level, use that
 				// level.
 				if( levels.ContainsKey(nm) ) {
-					return levels[ nm ];
+					Level l = levels[ nm ];
+					cachedLevels[ nm ] = new CachedLevel( l );
+					return l;
 				}
 			}
 			try {
 				// The top level logger has a level set for itself.
 				// technically the loop above also covers this logger name
 				// but we'll do it explicitly here too just to make sure.
-				if( loggers.ContainsKey(""))
-					return loggers[ "" ].Level;
+				if( loggers.ContainsKey( "" ) ) {
+					Level l =  loggers[ "" ].Level;
+					cachedLevels[ "" ] = new CachedLevel( l );
+					return l;
+				}
 			} catch( Exception ex ) {
 				ReportExceptionToEventLog("Can't get level for '' Logger instance", ex);
 			}
@@ -356,7 +379,7 @@ namespace NetLog.Logging
 						// makes sure that at least a console handler is active if nothing else.
 						if( Logger.GetLogger("").GetHandlers().Count == 0 ) {
 							// put back a console handler if the handlers could not be loaded
-							Handler h = new ConsoleHandler();
+							Handler h = GetDefaultHandler();
 							if ( handlers.ContainsKey( h.GetType( ).FullName ) == false ) {
 								handlers[h.GetType( ).FullName] = h;
 							}
@@ -371,6 +394,7 @@ namespace NetLog.Logging
 						// but we will code it this way to allow the last formatter to be used so that a
 						// configuration file might contain multiple formatters and just moving one to the end
 						// will use it.
+
 						foreach( string cls in arr ) {
 							if( ! handlers.ContainsKey( handler ) ) {
 								if( log != null && log.IsLoggable(Level.FINE) )
@@ -380,7 +404,15 @@ namespace NetLog.Logging
 							Handler h = handlers[handler];
 							if( log != null && log.IsLoggable(Level.FINE) )
 								Console.WriteLine("set formatter on handler \"" + handler + "\": " + h);
-							Formatter f = (Formatter)Activator.CreateInstance(Type.GetType(cls));
+							lock( formatters ) {
+								if( formatters.ContainsKey( cls ) == false ) {
+									formatters[ cls ] = (Formatter)Activator.CreateInstance( Type.GetType( cls ) );
+								} else {
+									if( log.IsLoggable( Level.FINE ) )
+										Console.WriteLine( "Already have formatter for class: " + cls );
+								}
+							}
+							Formatter f = formatters[ cls ];
 							// set the formatter.
 							if( log != null && log.IsLoggable(Level.FINE) )
 								Console.WriteLine("setting formatter: " + cls);
@@ -550,6 +582,18 @@ namespace NetLog.Logging
 
 		internal static void ConsoleWrite( string p ) {
 			Console.Write(p);
+		}
+
+		internal Handler GetDefaultHandler() {
+			String nm = typeof( ConsoleHandler ).FullName;
+			lock( handlers ) {
+				if( handlers.ContainsKey( nm ) ) {
+					return handlers[ nm ];
+				}
+				ConsoleHandler h = new ConsoleHandler();
+				handlers[ nm ] = h;
+				return h;
+			}
 		}
 	}
 }
