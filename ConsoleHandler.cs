@@ -7,51 +7,63 @@ using System.Threading.Tasks;
 
 namespace NetLog.Logging
 {
-	public class ConsoleHandler : Handler
-	{
-		private bool consoleDebug;
+    public class ConsoleHandler : Handler
+    {
+        private bool consoleDebug;
 
-		public new bool ConsoleDebug
-		{
-			get { return consoleDebug; }
-			set { consoleDebug = value; }
-		}
-		public ConsoleHandler()
-		{
-			WaitCount = 100;
-		}
-		public override void Close() {
-		}
-		public override void Flush() {
-			Console.Out.Flush();
-		}
-		Queue recs = new Queue();
-		public override void Publish( LogRecord rec ) {
-			// stop now if not loggable
-			if (consoleDebug)
-				Console.WriteLine("rec level: " + rec.Level + ", our Level: " + this.Level);
+        public new bool ConsoleDebug {
+            get { return consoleDebug; }
+            set { consoleDebug = value; }
+        }
+        public ConsoleHandler() {
+            WaitCount = 100;
+        }
+        public override void Close() {
+        }
+        public override void Flush() {
+            Console.Out.Flush();
+        }
 
-			if ( rec.Level.IntValue < this.Level.IntValue || this.Level == Level.OFF)
-			{
-				return;
-			}
+        //Queue recs = new Queue();
+        public override void Publish( LogRecord rec ) {
+            // stop now if not loggable
+            if( consoleDebug )
+                Console.WriteLine( "rec level: " + rec.Level + ", our Level: " + this.Level );
 
-			Enqueue( rec );
-		}
+            if( rec.Level.IntValue < this.Level.IntValue || this.Level == Level.OFF ) {
+                return;
+            }
+            Enqueue( rec );
+        }
 
-		StringBuilder b = new StringBuilder();
-		protected override void PushBoundry() {
-			Console.Write( b.ToString() );
-			b.Clear();			
-		}
+        /// <summary>
+        /// The StringBuilder for buffering data with, to reduce Console.Write calls
+        /// </summary>
+        private StringBuilder bld = new StringBuilder();
 
-		protected override void Push( LogRecord rec ) {
-			if( HavePrefix )
-				b.Append( Prefix );
-				rec.SequenceNumber = NextSequence;
-			b.Append( Formatter.format( rec ) );
-				if ( HaveSuffix )
-				b.Append( Suffix );
-			}
-		}
-	}
+        /// <summary>
+        /// Push the passed LogRecord into the write buffer
+        /// </summary>
+        /// <param name="rec"></param>
+        protected override void Push( LogRecord rec ) {
+            // Make sure sequencing stays consistent and log records are
+            // fully formed.
+            lock(this) {
+                rec.SequenceNumber = NextSequence;
+                if( HavePrefix )
+                    bld.Append( Prefix );
+                bld.Append( this.Formatter.format( rec ) );
+                if( HaveSuffix )
+                    bld.Append( Suffix );
+            }
+        }
+
+        /// <summary>
+        /// Write the Buffer to the console.
+        /// </summary>
+        protected override void PushBoundry() {
+            Console.Write( bld.ToString() );
+            bld.Clear();
+        }
+    }
+}

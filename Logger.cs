@@ -105,24 +105,21 @@ namespace NetLog.Logging
 			LogManager lm = LogManager.GetLogManager( );
 			if ( consoleDebug )
 				Console.WriteLine( "Get logger \"" + name + "\": have? " + ( LogManager.Loggers.ContainsKey( name ) ? ( "YES, Level: " + LogManager.Loggers[name].Level ) : "NO" ) );
-			lock( LogManager.Loggers ) {
-				if( LogManager.Loggers.ContainsKey( name ) == false ) {
-					l = new Logger( name );
-					if( name.Equals("") ) {
-						Handler h = lm.GetDefaultHandler();
-						l.handlers.Add( h );
-						// This is the only level that we force to .INFO.  All
-						// others will find there level here, or explicitly set.
-						l.Level = Level.INFO;
-						if( h.Formatter == null )
-							h.Formatter = new StreamFormatter();
-					}
-					lm.AddLogger( l );
-				} else {
-					l = LogManager.Loggers[name];
+			if( LogManager.Loggers.ContainsKey( name ) == false ) {
+				l = new Logger( name );
+				if( name.Equals( "" ) ) {
+					Handler h = new ConsoleHandler();
+					l.handlers.Add( h );
+					// This is the only level that we force to .INFO.  All
+					// others will find there level here, or explicitly set.
+					l.Level = Level.INFO;
+					if( h.Formatter == null )
+						h.Formatter = new StreamFormatter();
 				}
-			}
-			return l;
+				lm.AddLogger( l );
+			}			
+			
+			return LogManager.Loggers[ name ];
 		}
 
 		/// <summary>
@@ -148,18 +145,32 @@ namespace NetLog.Logging
 					Console.WriteLine("All Level Set For logger=" + name);
 				}
 				this.level = value;
+				LogManager.GetLogManager().LastChange = DateTime.UtcNow;
 				if ( consoleDebug )
 					Console.WriteLine( Name + " level now " + value );
 				NotifyDetailListeners();
 			}
 			get { 
 				Level l = this.level;
-				return l == null ? 
-					(LogManager.GetLogManager().LevelOfLogger(name)) :
-					l;
+				return l == null ? LevelComputed : l;
 			}
 		}
 
+		private DateTime lastLevelComputed;
+		private Level computedLevel;
+		internal Level LevelComputed {
+			get {
+				// Save now, before we ask if up to date.
+				DateTime lastComputed = DateTime.UtcNow;
+				if( lastLevelComputed < LogManager.GetLogManager().LastChange ) {
+					// Set new computed timestamp;
+					lastLevelComputed = lastComputed;
+					return computedLevel = LogManager.GetLogManager().LevelOfLogger( name );
+				} else {
+					return computedLevel;
+				}
+			}
+		}
 		private void NotifyDetailListeners() {
 			foreach( LogDetailsListener l in listeners ) {
 				NotifyDetailListener(l);
@@ -400,21 +411,25 @@ namespace NetLog.Logging
 
 
 		public void log ( Level level, Exception ex ) {
+			if( !IsLoggable( level ) ) return;
 			LogRecord rec = new LogRecord( level, ex.GetType().FullName+": "+ex.Message );
 			rec.Thrown = ex;
 			log( rec );
 		}
 		public void log ( Level level, string msg )
 		{
+			if( !IsLoggable( level ) ) return;
 			log( new LogRecord( level, msg ) );
 		}
 		public void log ( Level level, string msg, Exception ex ) {
+			if( !IsLoggable( level ) ) return;
 			LogRecord rec = new LogRecord( level, msg );
 			rec.Thrown = ex;
 			log( rec );
 		}
 
 		public void log ( Level level, string msg, Exception ex, params object[ ] parms ) {
+			if( !IsLoggable( level ) ) return;
 			LogRecord rec = new LogRecord( level, msg );
 			rec.Parameters = parms;
 			rec.Thrown = ex;
@@ -423,6 +438,7 @@ namespace NetLog.Logging
 
 		public void log ( Level level, string msg, params object[ ] parms )
 		{
+			if( !IsLoggable( level ) ) return;
 			LogRecord rec = new LogRecord( level, msg );
 			rec.Parameters = parms;
 			log (rec) ;
