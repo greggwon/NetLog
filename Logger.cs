@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections;
+using System.Configuration;
 
 namespace NetLog.Logging
 {
@@ -98,22 +99,24 @@ namespace NetLog.Logging
 		/// <returns></returns>
 		public static Logger GetLogger( String name ) {
 			Logger l;
-			// Have to do this up front because it may create logging instances
-			// to preset levels when logging.properties has such content, and so
-			// we want to find those logger instances, instead of creating them here,
-			// and then not seeing those instances if we do things out of order.
-			LogManager lm = LogManager.GetLogManager( );
+            Level appLevel = GetAppLogLevel();
+            // Have to do this up front because it may create logging instances
+            // to preset levels when logging.properties has such content, and so
+            // we want to find those logger instances, instead of creating them here,
+            // and then not seeing those instances if we do things out of order.
+            LogManager lm = LogManager.GetLogManager( );
 			if ( consoleDebug )
 				Console.WriteLine( "Get logger \"" + name + "\": have? " + ( LogManager.Loggers.ContainsKey( name ) ? ( "YES, Level: " + LogManager.Loggers[name].Level ) : "NO" ) );
 			lock( LogManager.Loggers ) {
 				if( LogManager.Loggers.ContainsKey( name ) == false ) {
 					l = new Logger( name );
+				    l.Level = appLevel;
 					if( name.Equals("") ) {
 						Handler h = new ConsoleHandler();
 						l.handlers.Add( h );
 						// This is the only level that we force to .INFO.  All
 						// others will find there level here, or explicitly set.
-						l.Level = Level.INFO;
+						l.Level = appLevel;
 						if( h.Formatter == null )
 							h.Formatter = new StreamFormatter();
 					}
@@ -125,10 +128,28 @@ namespace NetLog.Logging
 			return l;
 		}
 
-		/// <summary>
-		/// Flush all handlers associated with this logger
-		/// </summary>
-		public void Flush() {
+        private static Level GetAppLogLevel()
+        {
+            Level level = Level.SEVERE; // default value
+
+            string appLoggingLevel = ConfigurationManager.AppSettings["appLoggingLevel"];
+
+            if (null != appLoggingLevel)
+            {
+                level = Level.parse(appLoggingLevel);
+
+                if (level == Level.ALL && appLoggingLevel.ToUpper().Trim() != "ALL")
+                {
+                    level = Level.SEVERE;
+                }
+            }
+            return level;
+        }
+
+        /// <summary>
+        /// Flush all handlers associated with this logger
+        /// </summary>
+        public void Flush() {
 			Logger logger = this;
 			while ( logger != null ) {
 				if ( consoleDebug )

@@ -220,7 +220,8 @@ namespace NetLog.Logging {
 		}
 
 		public ListenerManager( TCPSocketHandler handler ) {
-			Console.Write( "Creating new listenermanager for: " + handler );
+			if( log != null && log.IsLoggable( Level.FINE ) )
+				Console.Write( "Creating new listenermanager for: " + handler );
 			remoteSockets = new List<Socket>();
 			stopping = false;
 			hand = handler;
@@ -271,7 +272,8 @@ namespace NetLog.Logging {
 			try {
 				Socket listener = (Socket)ar.AsyncState;
 				Socket remoteSocket = listener.EndAccept( ar );
-				Console.WriteLine( "Accept Callback results: " + ar );
+				if( log != null && log.IsLoggable( Level.FINE ) )
+					Console.WriteLine( "Accept Callback results: " + ar );
 				// Turn off Nagle to get data through on each log message.
 				remoteSocket.NoDelay = false;
 				lock( remoteSockets ) {
@@ -295,7 +297,8 @@ namespace NetLog.Logging {
 						WatchLevels( hand, remoteSocket );
 					}
 				}
-				Console.WriteLine( "Accepted new connection, reporting: " + remoteSocket );
+				if( log != null && log.IsLoggable( Level.FINE ) )
+					Console.WriteLine( "Accepted new connection, reporting: " + remoteSocket );
 			} catch( Exception ex ) {
 				Console.WriteLine( "ACC: " + ex );
 				// we don't clean up remoteSockets here because it will happen on the next
@@ -355,7 +358,8 @@ namespace NetLog.Logging {
 		IPEndPoint localEP;
 
 		internal void StartListening() {
-			Console.WriteLine( "StartListening Called: " + Environment.StackTrace );
+			if( log != null && log.IsLoggable( Level.FINE ) )
+				Console.WriteLine( "StartListening Called: " + Environment.StackTrace );
 			if( HostAddress == null ) {
 				localEP = new IPEndPoint(IPAddress.Any, PortNumber);
 			} else {
@@ -370,7 +374,8 @@ namespace NetLog.Logging {
 			listener = new ListenerThread();
 			listener.Start( localEP, acceptCallback );
 
-			Console.WriteLine("TCPSocketHandler: Local address and port : {0}", localEP.ToString());
+			if( log != null && log.IsLoggable( Level.FINE ) )
+				Console.WriteLine( "TCPSocketHandler: Local address and port : {0}", localEP.ToString() );
 		}
 		private volatile ListenerThread listener;
 		public delegate void AcceptCallback( IAsyncResult ar );
@@ -380,7 +385,8 @@ namespace NetLog.Logging {
 			private AutoResetEvent allDone = new AutoResetEvent( false );
 			private AutoResetEvent hasStoppped = new AutoResetEvent( false );
 			public void Stop() {
-				Console.WriteLine( "ListenerThread was stopped" );
+				if( log != null && log.IsLoggable( Level.FINE ) )
+					Console.WriteLine( "ListenerThread was stopped" );
 				stopping = true;
 				allDone.Set();
 				hasStoppped.WaitOne();
@@ -393,7 +399,8 @@ namespace NetLog.Logging {
 				hasStoppped.Reset();
 				Thread th = new Thread( new ThreadStart( () => {
 					try {
-						Console.WriteLine( "Binding to: " + localEP );
+						if( log != null && log.IsLoggable( Level.FINE ) )
+							Console.WriteLine( "Binding to: " + localEP );
 						listener.Bind( localEP );
 						listener.Listen( 10 );
 
@@ -402,20 +409,24 @@ namespace NetLog.Logging {
 								//							Console.WriteLine( "Starting accept loop" );
 								// reset semaphore to wait for accept to complete
 								log.fine( "allDone.Reset()" );
-								Console.WriteLine( "Resettting allDone" );
+								if( log != null && log.IsLoggable( Level.FINE ) )
+									Console.WriteLine( "Resettting allDone" );
 								allDone.Reset();
 
-								Console.WriteLine( "Starting Accept" );
+								if( log != null && log.IsLoggable( Level.FINE ) )
+									Console.WriteLine( "Starting Accept" );
 								// Enqueue accept
 								listener.BeginAccept(
 									new AsyncCallback( acceptCallback ),
 									listener );
 
 								// Wait on semaphore.
-								Console.WriteLine( "Waiting for allDone" );
+								if( log != null && log.IsLoggable( Level.FINE ) )
+									Console.WriteLine( "Waiting for allDone" );
 								log.fine( "allDone.WaitOne()" );
 								allDone.WaitOne();
-								Console.WriteLine( "Completed for allDone: " + stopping );
+								if( log != null && log.IsLoggable( Level.FINE ) )
+									Console.WriteLine( "Completed for allDone: " + stopping );
 							} catch( Exception ex ) {
 								Console.WriteLine( "NN: " + ex.ToString() );
 								listener.Close();
@@ -441,7 +452,8 @@ namespace NetLog.Logging {
 								Console.WriteLine( "SSEX: " + ex );
 							}
 						}
-						Console.WriteLine( "Exiting handler listen/accept thread" );
+						if( log != null && log.IsLoggable( Level.FINE ) )
+							Console.WriteLine( "Exiting handler listen/accept thread" );
 						hasStoppped.Set();
 					}
 				} ) );
@@ -459,8 +471,9 @@ namespace NetLog.Logging {
 		/// </summary>
 		public void Close() {
 			stopping = true;
-
-			Console.WriteLine( "Closing ServerManager ListenerThread: " + listener );
+		
+			if( log != null && log.IsLoggable( Level.FINE ) )
+				Console.WriteLine( "Closing ServerManager ListenerThread: " + listener );
 			try {
 				if( listener != null )
 					listener.Stop();

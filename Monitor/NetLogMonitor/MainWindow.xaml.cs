@@ -959,7 +959,7 @@ namespace NetLog.NetLogMonitor {
 				eventList.FontSize = 16;
 			} else if( itm.Name.Equals( "exlargeFont" ) ) {
 				eventList.FontSize = 19;
-			}
+			}  
 		}
 	}
 	public class MyLogger {

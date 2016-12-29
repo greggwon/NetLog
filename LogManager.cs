@@ -39,6 +39,7 @@ namespace NetLog.Logging
 
 			// this will force configuration load, and errors there can not expect "log" to be initialized yet.
 			log = Logger.GetLogger( "NetLog.Logging.LogManager" );
+			log.level = Level.INFO;
 		}
 
 		public bool ConsoleDebug {
@@ -60,7 +61,7 @@ namespace NetLog.Logging
 		}
 
 		public void ReadConfiguration() {
-			if( false )
+			if( log != null && log.IsLoggable( Level.FINE ) )
 				Console.WriteLine( "Reading Configuration: " + Environment.StackTrace );
 			string initName = System.Environment.GetEnvironmentVariable( "netlog.logging.config.class" );
 			string initAsmb = System.Environment.GetEnvironmentVariable( "netlog.logging.config.assembly" );

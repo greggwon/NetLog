@@ -99,6 +99,7 @@
                         <ColumnDefinition Width="193*"/>
                     </Grid.ColumnDefinitions>
                     <ListBox FontSize="12" x:Name="eventList" Margin="0,0,-0.4,0.8" 
+							
 							 VirtualizingStackPanel.VirtualizationMode="Recycling"
             				SelectionMode="Extended" KeyUp="eventList_KeyDown" 
             				SelectionChanged="eventList_SelectionChanged" Grid.ColumnSpan="3"/>
