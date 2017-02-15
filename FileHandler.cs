@@ -15,7 +15,7 @@ namespace NetLog.Logging
 		private int gens;
 		protected FileInfo finfo;
 		private string name;
-		private bool firstStart = false;
+		private volatile bool firstStart = false;
 		private bool asyncFlush = true;
 		private bool consoleDebug;
 
@@ -33,14 +33,19 @@ namespace NetLog.Logging
 
 		public override void Close() {
 			try {
-				while( !processor() ) {
-					lock( this ) {
-						Monitor.Wait(this, 400);
+				lock( this ) {
+					while( !processor() ) {
+						lock( this ) {
+							Monitor.Wait(this, 400);
+						}
 					}
-				}
-				if( outf != null ) {
-					outf.Close();
-					outf = null;
+					if( outf != null ) {
+						try {
+							outf.Close();
+						} finally {
+							outf = null;
+						}
+					}
 				}
 			} catch( Exception ex ) {
 				LogManager.ReportExceptionToEventLog("error closing FileHandler", ex);
@@ -111,7 +116,7 @@ namespace NetLog.Logging
 			len = 0;
 			if( f.Exists )
 				len = f.Length;
-
+			WaitCount = 100;
 			outf = baseFileOpen( true );
 		}
 
@@ -210,6 +215,7 @@ namespace NetLog.Logging
 			return outp;
 		}
 
+		private StringBuilder bld = new StringBuilder();
 		public override void Publish( LogRecord rec ) {
 			if( !firstStart ) {
 				lock( this ) {
@@ -225,13 +231,27 @@ namespace NetLog.Logging
 		}
 
 		protected override void PushBoundry() {
+		
+			if( outf == null || CheckNewFile() ) {
+				Close();
+				shuffleDown();
+				// trunc/reopen the file.
+				outf = baseFileOpen( false );
+				len = 0;
+			}
+
+			outf.Write( bld.ToString() );
+			bld.Clear();
 			if( asyncFlush && outf != null )
 				outf.Flush();
+			len = finfo.Length;
 		}
 
 		protected virtual bool CheckNewFile() {
 			return( outf == null || new FileInfo( name+(gens>1 ? ".0" : "") ).Length > limit );
 		}
+
+		private SpinLock pushLock = new SpinLock();
 
 		/// <summary>
 		/// There will only ever be exactly one thread calling into this method, so
@@ -247,28 +267,17 @@ namespace NetLog.Logging
 				return;
 			}
 
-			if ( outf == null || CheckNewFile( ) ) {
-				Close();
-				shuffleDown( );
-				// trunc/reopen the file.
-				outf = baseFileOpen( false );
-				len = 0;
-			}
-
 			rec.SequenceNumber = NextSequence;
 			String str = Formatter.format( rec );
 			try {
 				if( outf != null ) {
-					outf.Write( str );
-					if( !asyncFlush )
-						outf.Flush();
+					bld.Append( str );
 				} else {
 					Console.Write( "# NOFILE # "+str );
 				}
 			} catch( IOException ex ) {
 				Console.Write("# SEVERE # Error writting to log file: "+ex.Message+"\n# SEVERE #"+str );
 			}
-			len = finfo.Length;
 		}
 	}
 }
