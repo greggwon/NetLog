@@ -217,9 +217,9 @@ namespace NetLog.Logging {
 		}
 
 		public ListenerManager( TCPSocketHandler handler ) {
-			if( log.IsLoggable( Level.FINE ) )
+			if( log != null && log.IsLoggable( Level.FINE ) )
 				Console.Write( "Creating new listenermanager for: " + handler );
-			remoteSockets = new List<TcpClient>();
+			remoteSockets = new List<Socket>();
 			stopping = false;
 			hand = handler;
 			this.HostAddress = handler.HostAddress;
@@ -386,7 +386,7 @@ namespace NetLog.Logging {
 			listener = new ListenerThread();
 			listener.Start( localEP, acceptCallBack );
 
-			if( log.IsLoggable( Level.FINE ) )
+			if( log != null && log.IsLoggable( Level.FINE ) )
 				Console.WriteLine( "TCPSocketHandler: Local address and port : {0}", localEP.ToString() );
 		}
 		private volatile ListenerThread listener;
@@ -396,7 +396,8 @@ namespace NetLog.Logging {
 			private volatile bool stopping;
 
 			public void Stop() {
-				Console.WriteLine( "ListenerThread was stopped" );
+				if( log != null && log.IsLoggable( Level.FINE ) )
+					Console.WriteLine( "ListenerThread was stopped" );
 				stopping = true;
 				try {
 					if( listener != null )

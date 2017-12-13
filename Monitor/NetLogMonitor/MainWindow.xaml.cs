@@ -317,6 +317,8 @@ namespace NetLog.NetLogMonitor {
 				return;
 			}
 			while( trimmingLines && eventList.Items.Count > maxLines ) {
+				MatchPatternItem mp = (MatchPatternItem)eventList.Items[ 0 ];
+				cache.Add( mp );
 				eventList.Items.RemoveAt(0);
 			}
 
@@ -332,9 +334,9 @@ namespace NetLog.NetLogMonitor {
 				string ss = str[i];
 				if( i != str.Length - 1 || ss.Length > 0 ) {
 					if( d == null ) {
-						eventList.Items.Add(new MatchPatternItem(ss));
+						eventList.Items.Add( MatchPatternFor( ss ) );
 					} else {
-						eventList.Items.Add(new MatchPatternItem(ss, d));
+						eventList.Items.Add( MatchPatternFor( ss, d ) );
 					}
 				}
 			}
@@ -360,14 +362,15 @@ namespace NetLog.NetLogMonitor {
 				if( i != str.Length - 1 || ss.Length > 0 ) {
 					d = CheckPatterns(ss);
 					if( d == null ) {
-						eventList.Items.Add(new MatchPatternItem(ss));
+						eventList.Items.Add( MatchPatternFor( ss ) );
 					} else {
-						eventList.Items.Add(new MatchPatternItem(ss, d));
+						eventList.Items.Add( MatchPatternFor( ss, d ) );
 					}
 				}
 			}
 			PostAppend();
 		}
+
 
 		private void clearButton_Click( object sender, RoutedEventArgs e ) {
 			disp.Invoke(DispatcherPriority.Normal,
@@ -551,11 +554,69 @@ namespace NetLog.NetLogMonitor {
 
 		private static ColorDescription blackAndWhite = new ColorDescription(Brushes.Transparent, Brushes.Black, "White");
 		private MatchPatternItem editing;
+		List<MatchPatternItem> cache = new List<MatchPatternItem>();
 
-		private class MatchPatternItem: ListBoxItem {
+		private object MatchPatternFor( string ss, ColorDescription color ) {
+			MatchPatternItem mp;
+			if( cache.Count > 0 ) {
+				mp = cache[ cache.Count - 1 ];
+				cache.RemoveAt( cache.Count - 1 );
+				mp.Content = mp.text = ss;
+				mp.color = color;
+				mp.Background = color.back;
+				mp.Foreground = color.fore;
+			} else {
+				mp = new MatchPatternItem( ss, color );
+			}
+			return mp;
+		}
+
+		private object MatchPatternFor( string ss ) {
+			MatchPatternItem mp;
+			if( cache.Count > 0 ) {
+				mp = cache[ cache.Count - 1 ];
+				cache.RemoveAt( cache.Count - 1 );
+				mp.Content = mp.text = ss;
+				mp.color = blackAndWhite;
+				mp.Background = blackAndWhite.back;
+				mp.Foreground = blackAndWhite.fore;
+			} else {
+				mp = new MatchPatternItem( ss, blackAndWhite );
+			}
+			return mp;
+		}
+
+		private object MatchPatternFor( string text, ColorDescription color, int index, ListBox patternList ) {
+			MatchPatternItem mp;
+			if( cache.Count > 0 ) {
+				mp = cache[ cache.Count - 1 ];
+				cache.RemoveAt( cache.Count - 1 );
+				mp.text = text;
+				mp.Content = text;
+				mp.index = index;
+				mp.color = color;
+				mp.Background = color.back;
+				mp.Foreground = color.fore;
+				mp.Margin = new Thickness( 0, 0, 0, 0 );
+				mp.Width = patternList.Width;
+			} else {
+				mp = new MatchPatternItem( text, color, index, patternList );
+			}
+			return mp;
+		}
+
+		private class MatchPatternItem: ListBoxItem, IDisposable {
 			public  string text;
 			public  ColorDescription color;
 			public  int index;
+
+			public void Dispose() {
+				this.color = null;
+				this.Content = null;
+				this.text = null;
+				base.Resources.Clear();
+			}
+
 			public MatchPatternItem( string text, ColorDescription color, int index, Control control ) {
 				this.text = text;
 				this.Content = text;
@@ -636,14 +697,15 @@ namespace NetLog.NetLogMonitor {
 				matchPattern.Text = "";
 				dirty = true;
 			} else {
-				patternList.Items.Add(new MatchPatternItem(matchPattern.Text, colors[ colorChoice.SelectedIndex ], colorChoice.SelectedIndex, patternList));
+				patternList.Items.Add(MatchPatternFor(matchPattern.Text, colors[ colorChoice.SelectedIndex ], colorChoice.SelectedIndex, patternList));
 				matchPattern.Text = "";
 				dirty = true;
 			}
 		}
 
+
 		private void editMatch_Click( object sender, RoutedEventArgs e ) {
-			//patternList.Items[ patternList.SelectedIndex ] = new MatchPatternItem(matchPattern.Text, colors[ colorChoice.SelectedIndex ], colorChoice.SelectedIndex, colorChoice); 
+			//patternList.Items[ patternList.SelectedIndex ] = MatchPatternFor(matchPattern.Text, colors[ colorChoice.SelectedIndex ], colorChoice.SelectedIndex, colorChoice); 
 			addMatch.Content = "Save";
 			deleteMatch.IsEnabled = false;
 			editMatch.IsEnabled = false;
@@ -840,14 +902,14 @@ namespace NetLog.NetLogMonitor {
 					if( d == null ) {
 						d = ((PatternItem)colorChoice.Items[ 0 ]).color;
 					}
-					MatchPatternItem mp = new MatchPatternItem(text, d);
-					patternList.Items.Add(mp);
+					patternList.Items.Add( MatchPatternFor( text, d ) );
 				} catch( Exception ex ) {
 					log.severe(ex);
 					MessageBox.Show(ex.Message);
 				}
 			}
 		}
+
 
 		private void EditMenu_Click( object sender, RoutedEventArgs e ) {
 			log.info("EditMenu Click: {0}, {1}", sender, e.Source);

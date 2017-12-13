@@ -39,6 +39,7 @@ namespace NetLog.Logging
 
 			// this will force configuration load, and errors there can not expect "log" to be initialized yet.
 			log = Logger.GetLogger( "NetLog.Logging.LogManager" );
+			log.level = Level.INFO;
 		}
 
 		public bool ConsoleDebug {
