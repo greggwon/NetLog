@@ -118,13 +118,13 @@ namespace NetLog.Logging
 			b.Append( formatMessage( rec ) );
 			if( rec.Thrown != null ) {
 				b.Append( Eol );
-				AddStackTrace( b, rec.Thrown );
+				AddStackTrace( b, Eol, rec.Thrown );
 			}
 			b.Append( Eol );
 			return b.ToString();
 		}
 
-		private void AddStackTrace( StringBuilder b, Exception exception ) {
+		public static void AddStackTrace( StringBuilder b, String Eol, Exception exception ) {
 			if( exception.StackTrace != null && exception.StackTrace.Length > 0 ) {
 				try {
 					string[] from = Environment.StackTrace.Replace(Environment.NewLine, "\n").Split('\n');
@@ -138,7 +138,7 @@ namespace NetLog.Logging
 						++i;
 
 					// Skip over Netlog.Logging method calls that got us down to here
-					ss = GetType().AssemblyQualifiedName.Split(',')[ 0 ];
+					ss = typeof(StreamFormatter).AssemblyQualifiedName.Split(',')[ 0 ];
 					ss = ss.Substring(0, ss.LastIndexOf('.'));
 					while( i < from.Length && from[ i ].Contains(ss) )
 						++i;
@@ -148,9 +148,9 @@ namespace NetLog.Logging
 						b.Append(from[ i++ ]);
 						b.Append(Eol);
 					}
-					AddStackTraces(b, exception);
+					AddStackTraces(b, Eol, exception);
 				} catch( Exception ex ) {
-					Console.WriteLine(ex.Message + ":\n" + ex.StackTrace);
+					LogManager.ConsoleWriteLine(ex.Message + ":\n" + ex.StackTrace);
 					b.Append(exception.Message);
 				}
 			} else {
@@ -158,11 +158,11 @@ namespace NetLog.Logging
 			}
 		}
 
-		private void AddStackTraces( StringBuilder b, Exception exception ) {
+		private static void AddStackTraces( StringBuilder b, String Eol, Exception exception ) {
 			if( exception.StackTrace != null && exception.StackTrace.Length > 0 ) {
 				try {
 					if( exception.InnerException != null ) {
-						AddStackTraces(b, exception.InnerException);
+						AddStackTraces(b, Eol, exception.InnerException);
 						b.Append(Eol);
 					}
 					// Append the specific exception and all of its stack traces.

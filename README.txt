@@ -6,4 +6,9 @@ in a different LogManager at this point.
 But, the logging.properties file in the processes current directory can be used to specify the list of Handler
 implementations that are associated with the Root ("") Logger instance, as well as each ones Level and Formatter.
 
-The logging.properties file can also be specified by the 
+The logging.properties file can also be specified by the "netlog.logging.config.file" environment variable or the
+"netlog.logging.config.file" app settings property.  The environment variable take precidence over the app settings 
+value.
+
+There is a configurationmanager section as well which can be used to create a more complex handler mapping than 
+the logging.properties file structure allows.

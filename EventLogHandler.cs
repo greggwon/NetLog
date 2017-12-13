@@ -14,7 +14,6 @@ namespace NetLog.Logging {
 	/// and would be some form of the application name.
 	/// </summary>
 	public class EventLogHandler : Handler, IDisposable {
-		private EventLog elog;
 		private string machineName, source, logName;
 		private int eventId = 0;
 		private bool atTrace;
@@ -29,22 +28,15 @@ namespace NetLog.Logging {
 
 			// create an event log configuration for our own diagnostics to go into.
 			try {
-				if( EventLog.SourceExists("NetLog.Logging") == false ) {
-					EventLog.CreateEventSource("NetLog.Logging","NetLog.Logging.EventLog");
+				if( EventLog.SourceExists( EventLogParms.Source ) == false ) {
+					EventLog.CreateEventSource( EventLogParms.Source, EventLogParms.LogName );
 				}
 				haveEventLog = true;
 			} catch( Exception ex ) {
 				haveEventLog = false;
-				reportInternalException( "Error setting up NetLog.Logging event source "+
-					"for logging to NetLog.Logging.EventLog", ex );
+				reportInternalException( "Error setting up NetLogLogging event source "+
+					"for logging to Applicatioin log", ex );
 			}
-			string cmd = System.Environment.CommandLine;
-			// space separated command line, take first element?
-			string[]arr = cmd.Split(new char[]{ ' ' } );
-			// split path into components
-			arr = arr[0].Split(new char[] { '/','\\' } );
-			// Take last element of path
-			cmd = arr[ arr.Length - 1 ];
 
 			// use the last element of the directory path for the name by default.
 			FileInfo f = new FileInfo(System.Environment.CurrentDirectory);
@@ -53,7 +45,7 @@ namespace NetLog.Logging {
 			source = source.Replace("_", "");
 			source = source.Replace(".", "_");
 
-			PrepareLogging(source, cmd);
+			PrepareLogging(source, "Application");
 		}
 
 		private void reportInternalException( string msg, Exception ex ) {
@@ -68,7 +60,6 @@ namespace NetLog.Logging {
 		void PrepareLogging( String source, String logName ) {
 			machineName = System.Environment.MachineName;
 			Formatter = new EventLogFormatter();
-			atTrace = true;
 			this.logName = logName;
 			EstablishHandlerSource(source);
 			this.source = source;
@@ -79,7 +70,6 @@ namespace NetLog.Logging {
 				System.Diagnostics.EventLog.CreateEventSource(
 					source, LogName);
 			}
-			elog = new EventLog(LogName, MachineName, source);
 		}
 
 		public void Dispose() {
@@ -87,8 +77,7 @@ namespace NetLog.Logging {
 			GC.SuppressFinalize(this);
 		}
 		void Dispose( bool all ) {
-			elog.Dispose();
-			elog = null;
+
 		}
 
 		public bool IncludeAtStacktrace {
@@ -100,7 +89,6 @@ namespace NetLog.Logging {
 			get { return machineName; }
 			set { 
 				machineName = value;
-				elog = new EventLog( LogName, MachineName, Source );
 			}
 		}
 		public string Source {
@@ -155,11 +143,12 @@ namespace NetLog.Logging {
 				: EventLogEntryType.Information;
 			string sub = str;
 			while( sub.Length > 0 ) {
+				int idx = System.Threading.Interlocked.Increment( ref eventId );
 				if( sub.Length > 31839 ) {
-					elog.WriteEntry( sub.Substring( 0, 31839 ), type, eventId++ );
+					EventLog.WriteEntry( Source, sub.Substring( 0, 31839 ), type, idx );
 					sub = sub.Substring( 31839 );
 				} else {
-					elog.WriteEntry(sub, type, eventId++);
+					EventLog.WriteEntry( Source, sub, type, idx);
 					sub = "";
 				}
 			}

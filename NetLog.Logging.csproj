@@ -80,6 +80,7 @@
     <Compile Include="StreamFormatter.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="license.txt" />
     <Content Include="README.txt" />
   </ItemGroup>
   <ItemGroup>

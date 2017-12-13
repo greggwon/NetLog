@@ -8,6 +8,7 @@ using System.Configuration;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using System.IO;
 
 #if BonjourEnabled
 using ZeroconfService;
@@ -22,8 +23,6 @@ namespace NetLog.Logging {
 #if BonjourEnabled
 		private string appName;
 #endif
-		internal Queue<LogRecord>history = new Queue<LogRecord>();
-
 		public TCPSocketHandler( string host, int port )
 			: this(port) {
 			HostAddress = host;
@@ -67,39 +66,37 @@ namespace NetLog.Logging {
 		/// <param name="rec"></param>
 		protected override void Push( LogRecord rec ) {
 			// stop now if not loggable
-			if( rec.Level.IntValue < this.Level.IntValue || this.Level == Level.OFF || listener.remoteSockets.Count == 0 ) {
+			if( rec.Level.IntValue < this.Level.IntValue || this.Level == Level.OFF ) {
 				return;
 			}
 
 			rec.SequenceNumber = NextSequence;
-			if( listener.remoteSockets.Count == 0 ) {
-				lock( this ) {
-					history.Enqueue(rec);
-					while( history.Count > 100 ) {
-						history.Dequeue();
-					}
-				}
-			}
+
 			String str = Formatter.format(rec) + "\r";
 			try {
 				byte[] msg = System.Text.Encoding.UTF8.GetBytes(str);
+				List<TcpClient> fails = new List<TcpClient>();
+				List<TcpClient> socks;
 				lock( listener.remoteSockets ) {
-					List<Socket> fails = new List<Socket>();
-					foreach( Socket remote in listener.remoteSockets ) {
-						try {
-							remote.Send(msg);
-						} catch( Exception ex ) {
-							fails.Add(remote);
-							LogManager.ReportExceptionToEventLog("Cannot write message to client " + remote + ": " + ex, ex);
-						}
+					socks = new List<TcpClient>( listener.remoteSockets );
+				}
+				foreach( TcpClient remote in socks ) {
+					try {
+						remote.GetStream().Write( msg, 0, msg.Length );
+						remote.GetStream().Flush();
+					} catch( Exception ex ) {
+						fails.Add(remote);
+						LogManager.ReportExceptionToEventLog("Cannot write message to client " + remote + ": " + ex, ex);
 					}
-					foreach( Socket remote in fails ) {
-						try {
-							remote.Close();
-						} catch( Exception ex ) {
-							LogManager.ReportExceptionToEventLog("Cannot write message to client " + remote + ": " + ex, ex);
-						} finally {
-							listener.remoteSockets.Remove(remote);
+				}
+				foreach( TcpClient remote in fails ) {
+					try {
+						remote.Close();
+					} catch( Exception ex ) {
+						LogManager.ReportExceptionToEventLog("Cannot write message to client " + remote + ": " + ex, ex);
+					} finally {
+						lock( listener.remoteSockets ) {
+							listener.remoteSockets.Remove( remote );
 						}
 					}
 				}
@@ -197,7 +194,7 @@ namespace NetLog.Logging {
 	}
 
 	internal class ListenerManager : IDisposable {
-		internal List<Socket>remoteSockets;
+		internal List<TcpClient>remoteSockets;
 		private bool stopping;
 		private volatile TCPSocketHandler hand;
 		private string addr;
@@ -220,8 +217,9 @@ namespace NetLog.Logging {
 		}
 
 		public ListenerManager( TCPSocketHandler handler ) {
-			Console.Write( "Creating new listenermanager for: " + handler );
-			remoteSockets = new List<Socket>();
+			if( log.IsLoggable( Level.FINE ) )
+				Console.Write( "Creating new listenermanager for: " + handler );
+			remoteSockets = new List<TcpClient>();
 			stopping = false;
 			hand = handler;
 			this.HostAddress = handler.HostAddress;
@@ -266,45 +264,24 @@ namespace NetLog.Logging {
 		}
 #endif
 
-		private void acceptCallback( IAsyncResult ar ) {
+		/// <summary>
+		/// Callback delegate for TcpListener accepted connections to TcpClient
+		/// </summary>
+		/// <param name="cl"></param>
+		public delegate void AcceptCallBack( TcpClient cl );
 
-			try {
-				Socket listener = (Socket)ar.AsyncState;
-				Socket remoteSocket = listener.EndAccept( ar );
-				Console.WriteLine( "Accept Callback results: " + ar );
-				// Turn off Nagle to get data through on each log message.
-				remoteSocket.NoDelay = false;
-				lock( remoteSockets ) {
-					try {
-						hand.Publish( new LogRecord( hand.Level, "have handlers: " + remoteSockets.Count ) );
-						if( remoteSockets.Count == 0 ) {
-							hand.Publish( new LogRecord( hand.Level, "have history Records: " + hand.history.Count ) );
-							foreach( LogRecord rec in hand.history ) {
-								String str = hand.Formatter.format( rec ) + "\r";
-								try {
-									byte[] msg = System.Text.Encoding.UTF8.GetBytes( str );
-									remoteSocket.Send( msg );
-								} catch( Exception ex ) {
-									LogManager.ReportExceptionToEventLog( "Cannot write message to client " + remoteSocket + " : " + ex.Message, ex );
-									break;
-								}
-							}
-						}
-					} finally {
-						remoteSockets.Add( remoteSocket );
-						WatchLevels( hand, remoteSocket );
-					}
-				}
-				Console.WriteLine( "Accepted new connection, reporting: " + remoteSocket );
-			} catch( Exception ex ) {
-				Console.WriteLine( "ACC: " + ex );
-				// we don't clean up remoteSockets here because it will happen on the next
-				// I/O attempt on the socket using exception handling there.
-				LogManager.ReportExceptionToEventLog( "Can't process socket connection", ex );
-			} finally {
-				log.fine( "allDone.Set()" );
-				listener.Next();
+		/// <summary>
+		/// Accept callback handler to register socket and start listening for to be implemented
+		/// API handling.
+		/// </summary>
+		/// <param name="remoteSocket"></param>
+		internal void acceptCallBack( TcpClient remoteSocket ) {
+			lock( remoteSockets ) {
+				remoteSockets.Add( remoteSocket );
 			}
+			// Make sure there is no Nagel holding of writes
+			remoteSocket.NoDelay = true;
+			WatchLevels( hand, remoteSocket );
 		}
 
 		/// <summary>
@@ -313,35 +290,63 @@ namespace NetLog.Logging {
 		/// </summary>
 		/// <param name="h"></param>
 		/// <param name="handler"></param>
-		internal void WatchLevels( TCPSocketHandler h, Socket handler ) {
+		internal void WatchLevels( TCPSocketHandler h, TcpClient handler ) {
 			Thread th = new Thread(() => {
-				h.Publish(new LogRecord(h.Level, "Processing telnet controls: "+handler));
+				h.Publish(new LogRecord(h.Level, "Processing telnet controls: "+handler.Client.RemoteEndPoint ));
 				int cnt;
 				byte[] data = new byte[1024];
 				try {
-					while( !stopping && handler.Connected && ( cnt = handler.Receive(data) ) > 0 ) {
+					BinaryReader rd = new BinaryReader( handler.GetStream() );
+					while( !stopping && handler.Connected && ( cnt = rd.Read( data, 0, data.Length ) ) > 0 ) {
 						String str = "";
 						for( int i = 0; i < cnt; ++i ) {
 							if( i > 0 )
 								str += " ";
 							str += data[ i ].ToString("x02");
 						}
+						// Check for a Telnet protocol request and just ignore it.
 						switch( data[ 0 ] ) {
 							case 0xff:
 								h.Publish(new LogRecord(h.Level, "Saw telnet control: " + str));
 								continue;
-						//	case NetLogProto.SET_LOGGER_CONFIG:
-						//	case NetLogProto.QUERY_LOGGERS:
-						//	case NetLogProto.QUERY_LOGGER_HANDLERS:
-						//	case NetLogProto.QUERY_HANDLER_FORMATTER:
-						//	case NetLogProto.ADD_LOGGER_HANDLER:
-						//	case NetLogProto.REVOVE_LOGGER_HANDLER:
-						//	case NetLogProto.SET_HANDLER_PROPERTIES:
-						//	case NetLogProto.QUERY_HANDLER_PROPERTIES:
-						//	case NetLogProto.SET_HANDLER_FORMATTER:
-						//	case NetLogProto.SET_LOG_LEVEL:
-						//		break;
 						}
+
+						// Pending work to change protocol between LogMonitor and this class.  The JSON strings
+						// assigned to this variable represent the message content proposed to be sent from the
+						// clients.
+						//string cmdTemplate = "";
+						//switch( (NetLogProto)data[ 0 ] ) {
+						//	case NetLogProto.SET_LOGGER_CONFIG:
+						//		cmdTemplate = "{ 'type' : 'setlogger', 'setlogger' : { 'name' : 'loggername', 'handler' : 'classname', 'formatter' : 'classname', 'level' : 'Level' } }";
+						//		break;
+						//	case NetLogProto.QUERY_LOGGERS:
+						//		cmdTemplate = "{ 'type' : 'getloggers' }";
+						//		break;
+						//	case NetLogProto.QUERY_LOGGER_HANDLERS:
+						//		cmdTemplate = "{ 'type' : 'gethandlers', 'gethandlers' : { 'name' : 'loggername' } }";
+						//		break;
+						//	case NetLogProto.QUERY_HANDLER_FORMATTER:
+						//		cmdTemplate = "{ 'type' : 'getformatter', 'getformatter' : { 'handler' : 'classname' } }";
+						//		break;
+						//	case NetLogProto.ADD_LOGGER_HANDLER:
+						//		cmdTemplate = "{ 'type' : 'sethandler', 'sethandler' : { 'name' : 'loggername', 'handler' : 'classname', 'properties' : { 'name' : 'value' } } }";
+						//		break;
+						//	case NetLogProto.REMOVE_LOGGER_HANDLER:
+						//		cmdTemplate = "{ 'type' : 'rmvhandler', 'rmvhandler' : { 'name' : 'loggername', 'handler' : 'classname' } }";
+						//		break;
+						//	case NetLogProto.SET_HANDLER_PROPERTIES:
+						//		cmdTemplate = "{ 'type' : 'setproperties', 'setproperties' : { 'name' : 'loggername', 'handler' : 'classname', 'properties' : { 'name' : 'value' } } }";
+						//		break;
+						//	case NetLogProto.QUERY_HANDLER_PROPERTIES:
+						//		cmdTemplate = "{ 'type' : 'getproperties', 'getproperties' : { 'name' : 'loggername', 'handler' : 'classname' } }";
+						//		break;
+						//	case NetLogProto.SET_HANDLER_FORMATTER:
+						//		cmdTemplate = "{ 'type' : 'setformatter', 'setformatter' : { 'name' : 'loggername', 'handler' : 'classname', 'formatter' : 'classname', 'properties' : { 'name' : 'value' } } }";
+						//		break;
+						//	case NetLogProto.SET_LOG_LEVEL:
+						//		cmdTemplate = "{ 'type' : 'setlevel', 'setlevel' : { 'name' : 'loggername', 'level' : 'Level' } }";
+						//		break;
+						//}
 					
 						h.Publish(new LogRecord(h.Level, "Saw unexpected received data: " + str));
 					}
@@ -352,105 +357,93 @@ namespace NetLog.Logging {
 			th.IsBackground = true;
 			th.Start();
 		}
-		IPEndPoint localEP;
 
 		internal void StartListening() {
-			Console.WriteLine( "StartListening Called: " + Environment.StackTrace );
+			IPEndPoint localEP = null;
+			if( log.IsLoggable( Level.FINE ) )
+				Console.WriteLine( "StartListening Called: " + Environment.StackTrace );
 			if( HostAddress == null ) {
 				localEP = new IPEndPoint(IPAddress.Any, PortNumber);
 			} else {
 				IPHostEntry ipHostInfo = Dns.GetHostEntry(HostAddress);
 				for( int i = 0; i < ipHostInfo.AddressList.Length; ++i ) {
-					if( ipHostInfo.AddressList[ i ].AddressFamily == AddressFamily.InterNetworkV6 )
-						continue;
+					// binding to IPV4 addresses only, so skip IPV6 addresses
+					if( ConfigurationManager.AppSettings[ "Listener:Bind:IPV6" ] == null ) {
+						if( ipHostInfo.AddressList[ i ].AddressFamily == AddressFamily.InterNetworkV6 )
+							continue;
+					}
 					localEP = new IPEndPoint(ipHostInfo.AddressList[ i ], PortNumber);
 					break;
 				}
+				if( localEP == null ) {
+					if( ipHostInfo != null && ipHostInfo.AddressList != null ) {
+						throw new NullReferenceException( "Could not find any (tried " + ipHostInfo.AddressList.Length + ") DNS mappings for: " + HostAddress );
+					} else {
+						throw new NullReferenceException( "Could not find any DNS mappings for: " + HostAddress );
+					}
+				}
 			}
 			listener = new ListenerThread();
-			listener.Start( localEP, acceptCallback );
+			listener.Start( localEP, acceptCallBack );
 
-			Console.WriteLine("TCPSocketHandler: Local address and port : {0}", localEP.ToString());
+			if( log.IsLoggable( Level.FINE ) )
+				Console.WriteLine( "TCPSocketHandler: Local address and port : {0}", localEP.ToString() );
 		}
 		private volatile ListenerThread listener;
 		public delegate void AcceptCallback( IAsyncResult ar );
 		public class ListenerThread {
-			private volatile Socket listener;
+			private volatile TcpListener listener;
 			private volatile bool stopping;
-			private AutoResetEvent allDone = new AutoResetEvent( false );
-			private AutoResetEvent hasStoppped = new AutoResetEvent( false );
+
 			public void Stop() {
 				Console.WriteLine( "ListenerThread was stopped" );
 				stopping = true;
-				allDone.Set();
-				hasStoppped.WaitOne();
+				try {
+					if( listener != null )
+						listener.Stop();
+				} catch( Exception ex ) {
+					Console.Write( "Error stopping listener: " + ex );
+				}
 			}
 
-			public void Start( IPEndPoint localEP, AcceptCallback acceptCallback ) {
-				listener = new Socket( localEP.Address.AddressFamily,
-					SocketType.Stream, ProtocolType.Tcp );
-				stopping = false;
-				hasStoppped.Reset();
+			public void Start( IPEndPoint localEP, AcceptCallBack callBack ) {
 				Thread th = new Thread( new ThreadStart( () => {
 					try {
-						Console.WriteLine( "Binding to: " + localEP );
-						listener.Bind( localEP );
-						listener.Listen( 10 );
-
+						listener = new TcpListener( localEP );
+						if( log.IsLoggable( Level.FINE ) )
+							Console.WriteLine( "Binding to: " + localEP );
+						listener.Start();
 						while( !stopping ) {
 							try {
-								//							Console.WriteLine( "Starting accept loop" );
-								// reset semaphore to wait for accept to complete
-								log.fine( "allDone.Reset()" );
-								Console.WriteLine( "Resettting allDone" );
-								allDone.Reset();
-
-								Console.WriteLine( "Starting Accept" );
+								if( log.IsLoggable( Level.FINE ) )
+									Console.WriteLine( "Starting Accept" );
 								// Enqueue accept
-								listener.BeginAccept(
-									new AsyncCallback( acceptCallback ),
-									listener );
-
-								// Wait on semaphore.
-								Console.WriteLine( "Waiting for allDone" );
-								log.fine( "allDone.WaitOne()" );
-								allDone.WaitOne();
-								Console.WriteLine( "Completed for allDone: " + stopping );
+								TcpClient remoteSocket = listener.AcceptTcpClient();
+								if( log.IsLoggable( Level.FINE ) )
+									Console.WriteLine( "Received connection from: "+remoteSocket );
+								callBack( remoteSocket );
 							} catch( Exception ex ) {
 								Console.WriteLine( "NN: " + ex.ToString() );
-								listener.Close();
-								listener = null;
 							}
 						}
 					} catch( Exception e ) {
 						Console.WriteLine( "NS: " + e.ToString() );
-						try {
-							if( listener != null )
-								listener.Close();
-						} catch( Exception exx ) {
-							Console.WriteLine( "BEX: " + exx );
-						} finally {
-							listener = null;
-						}
 						LogManager.ReportExceptionToEventLog( "Error Processing Connections to socket: " + listener, e );
 					} finally {
 						if( listener != null ) {
 							try {
-								listener.Close();
+								listener.Stop();
 							} catch( Exception ex ) {
 								Console.WriteLine( "SSEX: " + ex );
 							}
 						}
-						Console.WriteLine( "Exiting handler listen/accept thread" );
-						hasStoppped.Set();
+						if( log.IsLoggable( Level.FINE ) )
+							Console.WriteLine( "Exiting handler listen/accept thread" );
 					}
 				} ) );
+				th.Name = "NetLog Listener: " + localEP.Port;
 				th.IsBackground = true;
 				th.Start();
-			}
-
-			internal void Next() {
-				allDone.Set();
 			}
 		}
 		
@@ -460,7 +453,8 @@ namespace NetLog.Logging {
 		public void Close() {
 			stopping = true;
 
-			Console.WriteLine( "Closing ServerManager ListenerThread: " + listener );
+			if( log.IsLoggable( Level.FINE ) )
+				Console.WriteLine( "Closing ServerManager ListenerThread: " + listener );
 			try {
 				if( listener != null )
 					listener.Stop();
@@ -470,20 +464,24 @@ namespace NetLog.Logging {
 				listener = null;
 			}
 
-			try {
-				foreach( Socket h in remoteSockets ) {
-					try {
+			List<TcpClient> socks;
+			lock( remoteSockets ) {
+				socks = new List<TcpClient>( remoteSockets );
+				// Force NPE for any remaining users.
+				remoteSockets = null;
+			}
+			foreach( TcpClient h in socks ) {
+				try {
+					if( log.IsLoggable( Level.FINE ) )
 						Console.WriteLine( "Closing socket: " + h );
-						h.Close();
-					} catch( Exception ex ) {
-						LogManager.ReportExceptionToEventLog( "Cannot write message to client " + h + ": " + ex, ex );
-					}
+					h.Close();
+				} catch( Exception ex ) {
+					LogManager.ReportExceptionToEventLog( "Cannot write message to client " + h + ": " + ex, ex );
 				}
-			} finally {
-				remoteSockets.Clear();
 			}
 
-			Console.WriteLine( "Closed ServerManager: " + this );
+			if( log.IsLoggable( Level.FINE ) )
+				Console.WriteLine( "Closed ServerManager: " + this );
 		}
 
 		public string HostAddress {
@@ -517,8 +515,10 @@ namespace NetLog.Logging {
 			} catch( Exception ex ) {
 				LogManager.ReportExceptionToEventLog("Error shutting down TCPSocketHandler for "+why, ex);
 			}
-			Console.WriteLine( "Reconnecting: " + why+": "+Environment.StackTrace );
+			if( log.IsLoggable( Level.FINE ) )
+				Console.WriteLine( "Reconnecting: " + why + ": " + Environment.StackTrace );
 			try {
+				remoteSockets = new List<TcpClient>();
 				StartListening();
 #if BonjourEnabled
 				RepublishService();

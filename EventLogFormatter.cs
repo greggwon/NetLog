@@ -10,7 +10,7 @@ namespace NetLog.Logging {
 
 		public override string format ( LogRecord record ) {
 			string str = "";
-			str += record.LoggerName+"["+record.Level+"]: "+formatMessage(record);
+			str += record.LoggerName+"\n["+record.Level+"]: "+formatMessage(record);
 			if( record.SourceClassName != null ) {
 				str += "\n"+record.SourceClassName;
 				if( record.SourceMethodName != null ) {

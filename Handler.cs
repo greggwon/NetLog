@@ -42,6 +42,10 @@ namespace NetLog.Logging
 		public Handler() {
 			level = Level.ALL;
 			Formatter = new StreamFormatter(false, true, false);
+			// Only hold a thread for 20 logging records before letting
+			// it continue and causing a following logging call to use
+			// that thread.
+			WaitCount = 20;
 		}
 
 		protected long NextSequence {
@@ -53,24 +57,34 @@ namespace NetLog.Logging
 			set { seq = value; }
 		}
 
+		System.Timers.Timer flusher;
 		/**
 		 * The front end of the Enqueue/Push/PushBoundry mechanism which can be used to
 		 * reduce concurrency locking down to just a simple spin lock test that will
 		 * check to see if another thread is already writing.
 		 */
 		protected void Enqueue( LogRecord rec ) {
-			/**
-			 * It would be tempting, to try to grab the spinlock here, and then
-			 * if we have it, just do Push/Pushboundry.  However, that opens the door
-			 * for a stalled log entry, because the logged record immediately behind us
-			 * might the Enqueue instead, and then there would be no thread, that would
-			 * actually go get the enqueued record and publish it.  So, we'd actually
-			 * need to do the loop anyway, checking for queued objects, so we might as well
-			 * simplify the logic and just pay for the Enqueue/Dequeue for the occasional record
-			 * anyway.
-			 */
 			records.Enqueue( rec );
 			processor();
+			// We need to force some thread to stay here until all records are written
+			// once the count of records gets to a particular point.  This loop
+			// creates a 
+			//while( limiting && records.Count > waitCount + 1 ) {
+			//	processor();
+			//	Thread.Sleep( 10 );
+			//}
+		}
+
+		private void AsyncFlush(object sender, System.Timers.ElapsedEventArgs e)
+		{
+			try {
+				while( records.Count > 0 ) {
+					processor();
+					//Thread.Sleep( 10 );
+				}
+			} catch( Exception ex ) {
+				Console.WriteLine( ex.ToString() );
+			}
 		}
 
 		// The spin lock used to keep only one thread active.
@@ -86,7 +100,12 @@ namespace NetLog.Logging
 		protected bool processor() {
 			LogRecord rec;
 
-			bool recurseTaken = _spinlock.IsHeldByCurrentThread;
+			// A thread which already holds the lock is somehow recursively reentering
+			// and we just need to return in that case because there is nothing for
+			// that thread to do here, it is at Push or PushBoundry, and should not
+			// need to come back to process more records.
+			if( _spinlock.IsHeldByCurrentThread )
+				return true;
 			bool lockTaken = _spinlock.IsHeldByCurrentThread;
 
 			int cnt = 0;
@@ -114,7 +133,11 @@ namespace NetLog.Logging
 					_spinlock.TryEnter( ref lockTaken );
 				}
 				if(lockTaken) {
-					if ( consoleDebug )
+					if( flusher != null ) {
+						flusher.Stop();
+						flusher = null;
+					}
+					if( consoleDebug )
 						Console.WriteLine( "Got lock, trying dequeue and push: " + limiting + ", cnt: " + cnt + ", wait: " + waitCount );
 					while( records.TryDequeue( out rec ) ) {
 						Push( rec );
@@ -124,12 +147,23 @@ namespace NetLog.Logging
 							break;
 					}
 					PushBoundry();
+					if( records.Count > 0 ) {
+						lock( this ) {
+							if( flusher != null ) {
+								flusher.Stop();
+							}
+							flusher = new System.Timers.Timer();
+							flusher.Elapsed += AsyncFlush;
+							flusher.Interval = 2000;
+							flusher.Start();
+						}
+					}
 				} else {
 					if ( consoleDebug )
 						Console.WriteLine( "lock is still busy: " + Thread.CurrentThread );
 				}
 			} finally {
-				if ( lockTaken && !recurseTaken ) _spinlock.Exit( false );
+				if ( lockTaken ) _spinlock.Exit( false );
 			}
 			return lockTaken;
 		}
@@ -139,7 +173,8 @@ namespace NetLog.Logging
 		/// Typically, this will be used to flush an output stream to disk or otherwise make 
 		/// sure it is visible.
 		/// </summary>
-		protected virtual void PushBoundry() { }
+		protected virtual void PushBoundry() {
+		}
 
 		/// <summary>
 		/// The Publish(LogRecord) implementation needs to provide an implementation of

@@ -109,7 +109,7 @@ namespace NetLog.Logging
 				if( LogManager.Loggers.ContainsKey( name ) == false ) {
 					l = new Logger( name );
 					if( name.Equals("") ) {
-						Handler h = new ConsoleHandler();
+						Handler h = lm.GetDefaultHandler();
 						l.handlers.Add( h );
 						// This is the only level that we force to .INFO.  All
 						// others will find there level here, or explicitly set.
@@ -175,20 +175,7 @@ namespace NetLog.Logging
 		}
 
 		public Logger Parent {
-			get {
-				if( name.Equals("") )
-					return null;
-				string[] arr = this.name.Split(new char[]{ '.' } );
-				string ln = "";
-				for( int i = 0; i < arr.Count()-1; ++i ) {
-					if( ln.Length == 0 ) {
-						ln = arr[i];
-					} else {
-						ln = ln + "." + arr[i];
-					}
-				}
-				return Logger.GetLogger(ln);
-			}
+			get; internal set;
 		}
 
 		public string Name {
@@ -222,6 +209,19 @@ namespace NetLog.Logging
 		/// <param name="name"></param>
 		public Logger( string name ) {
 			this.name = name;
+			if( name.Equals( "" ) ) {
+				Parent = null;
+			}
+			else {
+				int idx = this.name.LastIndexOf( '.' );
+				if( idx == -1 ) {
+					Parent = Logger.GetLogger( "" );
+				}
+				else {
+					string parName = name.Substring( 0, idx );
+					Parent = Logger.GetLogger( parName );
+				}
+			}
 			this.handlers = new List<Handler>();
 		}
 
@@ -452,7 +452,10 @@ namespace NetLog.Logging
 					Console.WriteLine("\"" + logger.Name + "\" handlers: " + logger.handlers.Count);
 				if( consoleDebug )
 					Console.WriteLine("record level " + rec.Level + ", logger level: " + logger.Level + ", logging");
-				if( rec.Level.IntValue < lowest.IntValue || lowest == Level.OFF ) {
+				//if( rec.Level == null ) {
+				//	throw new NullReferenceException( "LogRecord is null, can not log: " + logger.handlers[ 0 ].Formatter.format( rec ) );
+				//}
+				if( rec.Level != null && ( rec.Level.IntValue < lowest.IntValue || lowest == Level.OFF ) ) {
 					return;
 				}
 				//if( lowest.IntValue > logger.Level.IntValue ) {

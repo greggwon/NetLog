@@ -65,7 +65,7 @@ namespace NetLog.Logging
 		}
 
 		public long SequenceNumber {
-			get { lock(this) { return seq; } }
+			get { return seq; }
 			set { seq = value; }
 		}
 		private string srcCls;

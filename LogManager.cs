@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Configuration;
 using System.Threading;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 namespace NetLog.Logging
 {
 	public class LoggingConfiguration {
@@ -17,15 +18,14 @@ namespace NetLog.Logging
 	public class LogManager
 	{
 		private static volatile Dictionary<string, Logger> loggers = new Dictionary<string, Logger>();
-		private static volatile Dictionary<string, Handler> handlers = new Dictionary<string, Handler>();
-		private static volatile Dictionary<string, Filter> filters = new Dictionary<string, Filter>();
-		private static volatile Dictionary<string, Formatter> formatters = new Dictionary<string, Formatter>();
+		private static volatile ConcurrentDictionary<string, Handler> handlers = new ConcurrentDictionary<string, Handler>();
+		private static volatile ConcurrentDictionary<string, Filter> filters = new ConcurrentDictionary<string, Filter>();
+		private static volatile ConcurrentDictionary<string, Formatter> formatters = new ConcurrentDictionary<string, Formatter>();
 		private static volatile Dictionary<string, Level> levels = new Dictionary<string, Level>();
 		private static volatile LogManager mgr;
-		private static bool primordialInit;
+		private static volatile bool primordialInit;
 		private static volatile FileSystemWatcher fw;
 		private static Logger log;
-		DateTime? lastModifiedConfig;
 		private static Boolean configLoaded;
 
 		static LogManager() {
@@ -46,12 +46,12 @@ namespace NetLog.Logging
 			set { log.Level = value ? Level.FINE : Level.INFO ; }
 		}
 
-		internal static Dictionary<string,Logger> Loggers {
+		internal static IDictionary<string,Logger> Loggers {
 			get { return loggers; }
 		}
 
 		private void OnChangedConfig ( object source, FileSystemEventArgs args ) {
-			Console.WriteLine( "logging.properties file "+args.ChangeType+": " + args.FullPath );
+			ConsoleWriteLine( "logging.properties file "+args.ChangeType+": " + args.FullPath );
 			lock ( loggers ) {
 				if( args.ChangeType == WatcherChangeTypes.Changed || args.ChangeType == WatcherChangeTypes.Created ) {
 					mgr.ReadConfiguration();
@@ -59,11 +59,17 @@ namespace NetLog.Logging
 			}			
 		}
 
+		private static StreamWriter sw;
+		private static FileInfo tmplog;
+		private static String tmpfile;
 		public void ReadConfiguration() {
-			Console.WriteLine( "Reading Configuration: " + Environment.StackTrace );
-			string initName = System.Environment.GetEnvironmentVariable( "netlog.logging.config.class" );
-			string initAsmb = System.Environment.GetEnvironmentVariable( "netlog.logging.config.assembly" );
+			tmpfile = Path.GetTempPath() + "/NetLogTrace.log";
+			tmplog = new FileInfo( tmpfile );
+			ConsoleWriteLine( "Reading Configuration: ("+tmpfile+(tmplog.Exists?" enabled" : " missing")+") called from:\n" + Environment.StackTrace );
+			string initName = null;// System.Environment.GetEnvironmentVariable( "netlog.logging.config.class" );
+			string initAsmb = null;// System.Environment.GetEnvironmentVariable( "netlog.logging.config.assembly" );
 			if ( initName != null ) {
+				ConsoleWriteLine( "Using Configuration: "+initName+" from "+initAsmb );
 				if( primordialInit )
 					return;
 				primordialInit = true;
@@ -80,59 +86,65 @@ namespace NetLog.Logging
 					return;
 
 				} catch ( System.IO.FileNotFoundException ex ) {
-					Console.WriteLine( "# SEVERE # Error insantiating \"netlog.logging.config.class\" " +
+					ConsoleWriteLine( "# SEVERE # Error instantiating \"netlog.logging.config.class\" " +
 						"specified initialization class, \"" + initName + "\": " + ex );//+":\n"+ex.StackTrace	);
-					ReportExceptionToEventLog("# SEVERE # Error insantiating \"netlog.logging.config.class\" " +
+					ReportExceptionToEventLog("# SEVERE # Error instantiating \"netlog.logging.config.class\" " +
 						"specified initialization class, \"" + initName + "\": ", ex);
 					// Continue and do normal initialization.
 				} catch ( System.TypeLoadException ex ) {
-					Console.WriteLine("# SEVERE # Error insantiating \"netlog.logging.config.class\" "+
+					ConsoleWriteLine("# SEVERE # Error instantiating \"netlog.logging.config.class\" "+
 						"specified initialization class, \""+initName+"\": "+ex );//+":\n"+ex.StackTrace	);
 					// Continue and do normal initialization.
-					ReportExceptionToEventLog("# SEVERE # Error insantiating \"netlog.logging.config.class\" " +
+					ReportExceptionToEventLog("# SEVERE # Error instantiating \"netlog.logging.config.class\" " +
 						"specified initialization class, \"" + initName + "\": ", ex);
 				}
 			}
-			try {
-				NetLogConfigurationSection sect = (NetLogConfigurationSection)
-					ConfigurationManager.GetSection("LoggingConfiguration");
-				if( sect != null ) {
-					ActivateConfigurationSection(sect);
-					configLoaded = true;
-					return;
-				}
-			} catch( Exception ex ) {
-				Console.WriteLine(ex.Message + ":\n" + ex);
-			}
+			//try {
+			//	ConsoleWriteLine( "Check for configuration section: " );
+			//	NetLogConfigurationSection sect = (NetLogConfigurationSection)
+			//		ConfigurationManager.GetSection("LoggingConfiguration");
+			//	ConsoleWriteLine( "Found configuration section: " + sect );
+			//	if( sect != null ) {
+			//		ConsoleWriteLine( "Using configuration section: " + sect );
+			//		ActivateConfigurationSection( sect);
+			//		configLoaded = true;
+			//		return;
+			//	}
+			//} catch( Exception ex ) {
+			//	ReportExceptionToEventLog( "Error Loading LoggingConfiguration Section: ", ex );
+			//}
+			ConsoleWriteLine( "Check for logging.properties" );
 
-			String props = "N/A";
+			String props = null;
 			try {
 				props = System.Environment.GetEnvironmentVariable( "netlog.logging.config.file" );
 				if( props == null )
+					props = ConfigurationManager.AppSettings["netlog.logging.config.file"];
+				if( props == null )
 					props = "logging.properties";
+				ConsoleWriteLine( "Using logging.properties: " + props );
 				if( fw != null ) {
-					//					if( log != null && log.IsLoggable(Level.FINE) )
-					Console.WriteLine( "Dropping existing watcher for: " + fw.Path );
+					ConsoleWriteLine( "Dropping existing watcher for: " + fw.Path );
 					fw.EnableRaisingEvents = false;
 				}
+				ConsoleWriteLine( "Setting up FileSystemWatcher for: " + props );
 				fw = new FileSystemWatcher();
 				fw.Path = new FileInfo( props ).DirectoryName;
 				fw.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;// | NotifyFilters.DirectoryName;
 				fw.Changed += new FileSystemEventHandler( OnChangedConfig );
 				fw.Filter = new FileInfo( props ).Name;
 				if( new FileInfo( props ).Exists == false ) {
-					if( log != null && log.IsLoggable( Level.FINE ) ) {
-						Console.WriteLine( "The designated properties file: " + props + " does not exist in " +
+					ConsoleWriteLine( "The designated properties file: " + props + " does not exist in " +
 							Directory.GetCurrentDirectory() );
-					}
 					return;
 				}
 				Exception ex = null;
 				bool readIt = false;
+				ConsoleWriteLine( "Attempting to reading properties from: " + props );
 				for( int i = 0; !readIt && i < 3; ++i ) {
 					try {
 						using( StreamReader sr = new StreamReader( props ) ) {
-							Console.WriteLine( "Opening " + props + " returned " + sr );
+							ConsoleWriteLine( "Opening " + props + " returned " + sr );
 							configLoaded = true;
 							readStream( sr );
 							readIt = true;
@@ -145,18 +157,23 @@ namespace NetLog.Logging
 							ex = e;
 					}
 				}
+				ConsoleWriteLine( "Reading properties from: " + props+" was "+(readIt ? "" : "not ")+"successful" );
 				if( !readIt ) {
 					configLoaded = false;
-					Console.WriteLine( "The Logging properties file, \"" + props + "\", could not be read!" );
-					Console.WriteLine( "# SEVERE # " + ex.Message + ": " + ex.StackTrace );
+					ConsoleWriteLine( "The Logging properties file, \"" + props + "\", could not be read!" );
+					ConsoleWriteLine( "# SEVERE # " + ex.Message + ": " + ex.StackTrace );
 					ReportExceptionToEventLog( "The Logging properties file, \"" + props + "\", could not be read!", ex );
-				}
-			} catch( Exception e ) {
+				} else
+                {
+                    configLoaded = true;
+                }
+            } catch( Exception e ) {
 				configLoaded = false;
 				ReportExceptionToEventLog( "The Logging properties file, \"" + props + "\", could not be read!", e );
-				Console.WriteLine( "The Logging properties file, \"" + props + "\", could not be read!" );
-				Console.WriteLine( "# SEVERE # " + e.Message + ": " + e.StackTrace );
+				ConsoleWriteLine( "The Logging properties file, \"" + props + "\", could not be read!" );
+				ConsoleWriteLine( "# SEVERE # " + e.Message + ": " + e.StackTrace );
 			} finally {
+				ConsoleWriteLine( "Fw Events now raised: " + (fw != null) );
 				if( fw != null )
 					fw.EnableRaisingEvents = true;
 			}
@@ -168,7 +185,7 @@ namespace NetLog.Logging
 				string cls = fmt.ClassName;
 				string asmb = fmt.AssemblyName;
 				Formatter fmtr = (Formatter)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, cls).Unwrap();
-				formatters.Add(name, fmtr);
+				formatters[name] = fmtr;
 				foreach( PropertyConfiguration p in fmt.Properties ) {
 					SetPropertyOn(fmtr, p);
 				}
@@ -178,7 +195,7 @@ namespace NetLog.Logging
 				string cls = filtcfg.ClassName;
 				string asmb = filtcfg.AssemblyName;
 				Filter filt = (Filter)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, cls).Unwrap();
-				filters.Add(name, filt);
+				filters[name] = filt;
 				foreach( PropertyConfiguration p in filtcfg.Properties ) {
 					SetPropertyOn(filt, p);
 				}
@@ -193,19 +210,20 @@ namespace NetLog.Logging
 					hndlr.Formatter = formatters[fmt];
 				} else if( fmt.Equals("streamFormatter") ) {
 					hndlr.Formatter = new StreamFormatter(false, true, false);
-					formatters.Add(fmt, hndlr.Formatter);
+					formatters[fmt] = hndlr.Formatter;
 				}
 				foreach( PropertyConfiguration p in hnd.Properties ) {
 					SetPropertyOn(hndlr, p);
 				}
-				handlers.Add(name, hndlr);
+				handlers[name] = hndlr;
 			}
+			Dictionary<String, Logger> nlog = new Dictionary<string, Logger>(loggers);
 			foreach( LoggerConfiguration lg in sect.Loggers ) {
 				string name = lg.Name;
 				string handler = lg.Handler;
 				Logger log;
 				if( lg.ClassName == null || lg.ClassName.Length == 0 || loggers.ContainsKey(name) ) {
-					if( loggers.ContainsKey(name) ) {
+					if( nlog.ContainsKey(name) ) {
 						throw new InvalidOperationException("Logger with name " + name + " is already defined, can't instantiate as \"" + lg.ClassName + "\"");
 					}
 					log = Logger.NeedNewLogger(name);
@@ -213,7 +231,7 @@ namespace NetLog.Logging
 					string asmb = lg.AssemblyName;
 					log = (Logger)Activator.CreateInstance(asmb.Length == 0 ? null : asmb, lg.ClassName).Unwrap();
 				}
-				loggers[ name ] = log;
+				nlog[ name ] = log;
 				if( handlers.ContainsKey(handler) ) {
 					log.AddHandler(handlers[ handler ]);
 				}
@@ -221,36 +239,49 @@ namespace NetLog.Logging
 					SetPropertyOn(log, p);
 				}
 			}
+			loggers = nlog;
 		}
 
 		private void SetPropertyOn( object fmtr, PropertyConfiguration p ) {
 			putPropValue(fmtr, p.Name, p.Value);
 		}
 
+		private static void CreateEventLogSource() {
+			try {
+				if( EventLog.SourceExists( EventLogParms.Source ) == false ) {
+					EventLog.CreateEventSource( EventLogParms.Source, EventLogParms.LogName );
+				}
+			}
+			catch( Exception ex ) {
+				if( sw != null ) 
+					sw.WriteLine( ex.Message + ":\n" + ExpandStackTraceFor( ex ) );
+				EventLog.WriteEntry( EventLogParms.Source, ex.Message + ":\n"+ ExpandStackTraceFor( ex ), EventLogEntryType.Error, 0, -1 );
+			}
+		}
 		public static void ReportExceptionToEventLog( string msg, Exception ex ) {
 			string str = "";
 			try {
+				if( sw != null )
+					sw.WriteLine( msg + ": " + ex.Message + ":\n" + ExpandStackTraceFor( ex ) );
+				CreateEventLogSource();
 				if( ex != null ) {
-					if( EventLog.SourceExists(EventLogParms.Source, ".") == false ) {
-						EventLog.CreateEventSource(EventLogParms.Source, "Application");
-					}
 					str = ExpandStackTraceFor(ex);
 				}
 				EventLog.WriteEntry(EventLogParms.Source, msg + ( ex == null ? "" : ( ": " + str ) ), EventLogEntryType.Error, 0, -1);
 			} catch( Exception exx ) {
-				Console.WriteLine("Error writing to eventLog for exception: " + exx );
-				Console.WriteLine(msg + ": " + ex.Message+"\n"+ex);
+				try {
+					ConsoleWriteLine( "Error writing to eventLog for exception: " + exx );
+					ConsoleWriteLine( msg + ": " + ex.Message + "\n" + ex );
+				} catch( Exception exxx ) {
+					Console.WriteLine( exxx.Message + "\n" + exxx.StackTrace );
+				}
 			}
 		}
 
 		private static string ExpandStackTraceFor( Exception ex ) {
-			string str = "";
-			if( ex.InnerException != null ) {
-				str += "Inner: "+ExpandStackTraceFor(ex.InnerException);
-			}
-			str += ex.GetType().FullName + ": " + ex.Message;
-			str += ex.StackTrace;
-			return str;
+			StringBuilder b = new StringBuilder();
+			StreamFormatter.AddStackTrace( b, "\n\r", ex );
+			return b.ToString();
 		}
 
 
@@ -259,47 +290,123 @@ namespace NetLog.Logging
 			readStream(rd);
 		}
 
+		internal class CachedLevel {
+			internal DateTime when;
+			internal Level level;
+			public CachedLevel( Level l ) {
+				UpdateWith( l );
+			}
+			public void UpdateWith( Level l ) {
+				level = l;
+				when = DateTime.UtcNow;
+			}
+			public bool Expired {
+				get {
+					return DateTime.UtcNow - when > new TimeSpan( 0, 0, 10 );
+				}
+			}
+		}
+
+		private Dictionary<string,CachedLevel> cachedLevels = new Dictionary<string, CachedLevel>();
+		/// <summary>
+		/// This is an implementation of String.SubString which seems to be faster than the
+		/// builtin version.  It's use of the local stack char[] seems to make things faster with
+		/// out as much overhead in object creation?  Not really sure, but the built-in was ~3.2% of
+		/// CPU time, and this once is running below ~2.8%.
+		/// </summary>
+		/// <param name="nm"></param>
+		/// <param name="start"></param>
+		/// <param name="end"></param>
+		/// <returns></returns>
+		private String subStringOf( String nm, int start, int end ) {
+			char[] arr = new char[ end - start ];
+			for( int i = start; i < end; ++i ) {
+				arr[ i - start ] = nm[ i ];
+			}
+			return new string(arr);
+		}
+		/// <summary>
+		/// Called to get the level of a Logger name which does not explicitly exist.  This is typically
+		/// going to happen for all loggers without an explicit Level set on the Logger itself.  The Logger.Level
+		/// getter will call here to ask for any assigned property values or parent logger Levels set explicitly.
+		/// </summary>
+		/// <param name="name">The name of the Logger to look for an implicit Level value for</param>
+		/// <returns></returns>
 		public Level LevelOfLogger( string name ) {
 			if( levels.ContainsKey(name) ) {
 				return levels[ name ];
 			}
-			//"logger.name.more.other"
+			if( cachedLevels.ContainsKey( name ) && cachedLevels[ name ].Expired == false )
+				return cachedLevels[ name ].level;
 
-			//	"logger", "name", "more", "other"
-			string[]arr = name.Split('.');
-			for( int i = arr.Length - 2; i >= 0; --i ) {
-				string nm = "";
-				for( int j = 0; j <= i; ++j ) {
-					if( j > 0 )
-						nm += ".";
-					nm += arr[ j ];
-				}
+			string nm = name;
+			int idx;
+			while( (idx = nm.LastIndexOf('.')) >= 0 ) {
+				nm = subStringOf(nm, 0, idx );
+
 				// If there is a physical Logger at this level, use any
 				// level explicitly set there.
 				if( loggers.ContainsKey(nm) && loggers[ nm ].level != null ) {
-					return loggers[ nm ].level;
+					Level l = loggers[ nm ].level;
+					CachedLevel cl;
+					if( cachedLevels.ContainsKey( nm ) ) {
+						cl = cachedLevels[ nm ];
+						cl.UpdateWith( l );
+					}
+					else {
+						ReplaceCachedDictionaryItem( nm, new CachedLevel( l ) );
+					}
+					return l;
 				}
 				// If there is a property set Level at a particular level, use that
 				// level.
 				if( levels.ContainsKey(nm) ) {
-					return levels[ nm ];
+					Level l = levels[ nm ];
+					CachedLevel cl;
+					if( cachedLevels.ContainsKey( nm ) ) {
+						cl = cachedLevels[ nm ];
+						cl.UpdateWith( l );
+					}
+					else {
+						ReplaceCachedDictionaryItem( nm, new CachedLevel( l ) );
+					}
+//					cachedLevels[ nm ] = new CachedLevel( l );
+					return l;
 				}
 			}
 			try {
 				// The top level logger has a level set for itself.
 				// technically the loop above also covers this logger name
 				// but we'll do it explicitly here too just to make sure.
-				if( loggers.ContainsKey(""))
-					return loggers[ "" ].Level;
+				if( loggers.ContainsKey( "" ) ) {
+					Level l =  loggers[ "" ].Level;
+					ReplaceCachedDictionaryItem("", new CachedLevel(l));
+//					cachedLevels[ "" ] = new CachedLevel( l );
+					return l;
+				}
 			} catch( Exception ex ) {
 				ReportExceptionToEventLog("Can't get level for '' Logger instance", ex);
 			}
 			return Level.ALL;
 		}
 
+		private void ReplaceCachedDictionaryItem(string nm, CachedLevel cachedLevel)
+		{
+			Dictionary<String, CachedLevel> lvls;
+			Dictionary<String, CachedLevel> old;
+			do
+			{
+				old = cachedLevels;
+				lvls = new Dictionary<string, CachedLevel>( old );
+				lvls[ nm ] = cachedLevel;
+			} while (Interlocked.CompareExchange<Dictionary<String, CachedLevel>>( ref cachedLevels, lvls, old ) != old );
+		}
+		private int recurseCount = 0;
 		private void readStream( StreamReader rd ) {
 			try {
 				string line;
+				if( Interlocked.Increment( ref recurseCount ) > 1 )
+					throw new InvalidProgramException( "readStream recursion in NetLog.Logging" );
 				while( ( line = rd.ReadLine() ) != null ) {
 					int idx;
 					if( line.StartsWith("handlers=" ) ) {
@@ -314,16 +421,16 @@ namespace NetLog.Logging
 									h = (Handler)Activator.CreateInstance( Type.GetType(cls) );
 								} catch( Exception ex ) {
 									ReportExceptionToEventLog("Error creating logging Handler \"" + cls + "\"", ex);
-									Console.WriteLine( "# ERROR # Error creating handler \""+cls+"\": "+ex.Message+"\n"+ex.Source+": "+ex.StackTrace );
+									ConsoleWriteLine( "# ERROR # Error creating handler \""+cls+"\": "+ex.Message+"\n"+ex.Source+": "+ex.StackTrace );
 									Exception other = ex.InnerException;
 									while( other != null ) {
-										Console.WriteLine("InnerException:\n" + other.StackTrace);
+										ConsoleWriteLine( "InnerException:\n" + other.StackTrace);
 										other = other.InnerException;
 									}
 									continue;
 								}
 								if( h == null ) {
-									Console.WriteLine("Can't load Handler class: "+cls );
+									ConsoleWriteLine( "Can't load Handler class: "+cls );
 									continue;
 								}
 								handlers[cls] = h;
@@ -331,35 +438,34 @@ namespace NetLog.Logging
 								h = handlers[cls];
 							}
 							if( log != null && log.IsLoggable(Level.FINE) )
-								Console.WriteLine( "adding handler: " + cls );
+								ConsoleWriteLine( "adding handler: " + cls );
 							Logger.GetLogger( "" ).GetHandlers( ).Add( h );
 							// rememeber which handlers are in the root logger.
 							oh[cls] = h;
 						}
 						// remove any handlers no longer listed.
 						if( log != null && log.IsLoggable(Level.FINE) )
-							Console.WriteLine( "root handlers: " + Logger.GetLogger( "" ).GetHandlers( ).Count );
+							ConsoleWriteLine( "root handlers: " + Logger.GetLogger( "" ).GetHandlers( ).Count );
 						foreach( Handler hh in new List<Handler>( Logger.GetLogger("").GetHandlers() ) ) {
 							if( log != null && log.IsLoggable(Level.FINE) )
-								Console.WriteLine( "Checking if using handler: \"" + hh.GetType( ).FullName + "\": " + oh );
+								ConsoleWriteLine( "Checking if using handler: \"" + hh.GetType( ).FullName + "\": " + oh );
 							if ( oh.ContainsKey( hh.GetType( ).FullName ) == false ) {
 								Logger.GetLogger("").RemoveHandler( hh );
 								if( log != null && log.IsLoggable(Level.FINE) )
-									Console.WriteLine( "Removing no longer used handler: \"" + hh.GetType( ).FullName + "\"" );
+									ConsoleWriteLine( "Removing no longer used handler: \"" + hh.GetType( ).FullName + "\"" );
 							}
 						}
 
 						// makes sure that at least a console handler is active if nothing else.
 						if( Logger.GetLogger("").GetHandlers().Count == 0 ) {
 							// put back a console handler if the handlers could not be loaded
-							Handler h = new ConsoleHandler();
+							Handler h = GetDefaultHandler();
 							if ( handlers.ContainsKey( h.GetType( ).FullName ) == false ) {
 								handlers[h.GetType( ).FullName] = h;
 							}
 							Logger.GetLogger("").AddHandler( h );
 						}
-						if( log != null && log.IsLoggable(Level.FINE) )
-							Console.WriteLine("handlers now (" + Logger.GetLogger("").GetHandlers().Count + ") :" + Logger.GetLogger("").GetHandlers()[0]);
+						ConsoleWriteLine( "handlers now (" + Logger.GetLogger("").GetHandlers().Count + ") :" + Logger.GetLogger("").GetHandlers()[0]);
 					} else if( ( idx = line.IndexOf(".formatter=" ) ) >= 0 ) {
 						String handler = line.Substring( 0, idx );
 						string[]arr = line.Substring( idx + ".formatter=".Length ).Split( new char[]{','} ) ;
@@ -367,26 +473,32 @@ namespace NetLog.Logging
 						// but we will code it this way to allow the last formatter to be used so that a
 						// configuration file might contain multiple formatters and just moving one to the end
 						// will use it.
+
 						foreach( string cls in arr ) {
 							if( ! handlers.ContainsKey( handler ) ) {
 								if( log != null && log.IsLoggable(Level.FINE) )
-									Console.WriteLine("Can't set formatter on nonexistent handler: \""+handler+"\"" );
+									ConsoleWriteLine( "Can't set formatter on nonexistent handler: \""+handler+"\"" );
 								continue;
 							}
 							Handler h = handlers[handler];
-							if( log != null && log.IsLoggable(Level.FINE) )
-								Console.WriteLine("set formatter on handler \"" + handler + "\": " + h);
-							Formatter f = (Formatter)Activator.CreateInstance(Type.GetType(cls));
+							ConsoleWriteLine( "set formatter on handler \"" + handler + "\": " + h);
+							lock( formatters ) {
+								if( formatters.ContainsKey( cls ) == false ) {
+									formatters[ cls ] = (Formatter)Activator.CreateInstance( Type.GetType( cls ) );
+								} else {
+									ConsoleWriteLine( "Already have formatter for class: " + cls );
+								}
+							}
+							Formatter f = formatters[ cls ];
 							// set the formatter.
 							if( log != null && log.IsLoggable(Level.FINE) )
-								Console.WriteLine("setting formatter: " + cls);
+								ConsoleWriteLine( "setting formatter: " + cls);
 							h.Formatter = f;
 						}
 					} else if( line.StartsWith("config=") ) {
 						string[]arr = line.Substring("config=".Length).Split( new char[]{','} ) ;
 						foreach( string cls in arr ) {
-							if( log != null && log.IsLoggable(Level.FINE) )
-								Console.WriteLine("instantiating config: " + cls);
+							ConsoleWriteLine( "instantiating config: " + cls);
 							Activator.CreateInstance(Type.GetType(cls));
 						}
 					} else if ( line.Contains( ".level=" ) || line.Contains( ".Level=" ) ) {
@@ -400,22 +512,23 @@ namespace NetLog.Logging
 						String level = line.Substring( lidx+(".level=".Length) );
 						Level l = Level.parse( level );
 						PutLevel(name, l);
-						if( ConsoleDebug )
-							Console.WriteLine("set level for \"" + name + "\" to " + l);
+
+						ConsoleWriteLine( "set level for \"" + name + "\" to " + l);
 
 						if( handlers.ContainsKey( name ) ) {
 							handlers[name].Level = l;
 						} else {
 							Logger lg = Logger.GetLogger(name);
 							lg.Level = l;
-							if( ConsoleDebug )
-								Console.WriteLine("set logger level for \"" + lg.Name + "\" to " + lg.Level);
+
+							ConsoleWriteLine( "set logger level for \"" + lg.Name + "\" to " + lg.Level);
 						}
 					} else {
 						string[]arr = line.Split(new char[]{ '=' } );
 						if( arr.Length == 2 ) {
 							string[] nm = arr[0].Split( new char[]{ '.' } );
 							string cls = "";
+							// Remove the last item.  Could use String.LastIndexOf() instead of loop
 							for( int i = 0; i < nm.Length-1; ++i ) {
 								if( cls.Length == 0 ) {
 									cls = nm[i];
@@ -423,29 +536,26 @@ namespace NetLog.Logging
 									cls = cls + "." + nm[i];
 								}
 							}
-							if( log != null && log.IsLoggable(Level.FINE) )
-								Console.WriteLine("found property name: " + arr[0] + " and value =" + arr[1]);
+							ConsoleWriteLine( "Found property='" + arr[0] + "' with value =" + arr[1]);
 							try {
 								if( handlers.ContainsKey( cls ) ) {
 									string propnm = nm[ nm.Length-1 ];
-									if( log != null && log.IsLoggable(Level.FINE) )
-										Console.WriteLine("found handler property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
 									Handler h = handlers[cls];
+									ConsoleWriteLine( "Setting handler ("+cls+"="+h+") property '" + propnm + "'=\"" + arr[ 1 ] + "\"" );
 									if( h != null ) {
 										putPropValue( h, propnm, arr[1] );
 									} else {
-										Console.WriteLine("# ERROR # Handler property value reference to unused handler class: "+cls);
+										ConsoleWriteLine( "# ERROR # Handler property value reference to unused handler class: "+cls);
 									}
 								} else if( formatters.ContainsKey( cls ) ) {
 									string propnm = nm[nm.Length - 1];
-									if( log != null && log.IsLoggable(Level.FINE) )
-										Console.WriteLine("found handler property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
+									ConsoleWriteLine( "found formatter property \"" + cls + "\", prop=" + propnm + " to \"" + arr[1] + "\"");
 									Formatter f = formatters[cls];
 									putPropValue( f, propnm, arr[1] );
 								}
 							} catch( Exception ex ) {
-								ReportExceptionToEventLog("Can't set property value: \"" + line + "\"", ex);
-								Console.WriteLine("# ERROR # can't set property value: \"" + line + "\": " + ex + "\n" + ex.StackTrace);
+								ConsoleWriteLine( "# ERROR # can't set property value: \"" + line + "\": " + ex + "\n" + ex.StackTrace );
+								ReportExceptionToEventLog( "Can't set property value: \"" + line + "\"", ex);
 							}
 						}
 					}
@@ -453,45 +563,94 @@ namespace NetLog.Logging
 			}
 			catch (Exception e)
 			{
-				// log will be null during initial configuration load, so log those errors
-				if( log == null || log.IsLoggable(Level.FINE) ) {
-					Console.WriteLine();
-				}
 				ReportExceptionToEventLog("The Logging configuration stream could not be read", e);
-				Console.WriteLine("# SEVERE # "+e.Message+":\n"+e.StackTrace);
+				ConsoleWriteLine( "# SEVERE # "+e.Message+":\n"+e.StackTrace);
+			} finally {
+				Interlocked.Decrement( ref recurseCount );
 			}
 		}
 
+		private static readonly Object StreamLock = new Object();
+
+		/// <summary>
+		/// If the tmp log file is active, write to it.
+		/// </summary>
+		/// <param name="val"></param>
+		private static void StreamWrite( String val ) {
+			if( tmplog.Exists ) {
+				lock( StreamLock ) {
+					try {
+						using( StreamWriter sw = new StreamWriter( tmpfile, true ) ) {
+							sw.WriteLine( val );
+						}
+					}
+					catch( Exception ex ) {
+						ReportExceptionToEventLog( "Cannot get temp trace file opened: " + tmpfile, ex );
+					}
+				}
+			}
+		}
+
+		private static int evid = 0;
+
+		public static void ConsoleWriteLine( string v ) {
+			// If not initialized yet, or logging is as low as FINER, then write to EventLog
+			if( log == null || log.IsLoggable( Level.FINER ) ) {
+				StreamWrite( v );
+				CreateEventLogSource();
+				Interlocked.Increment( ref evid );
+				EventLog.WriteEntry( EventLogParms.Source, v, EventLogEntryType.Information, evid );
+			} else if( log != null && log.IsLoggable( Level.FINE ) ) {
+				Console.WriteLine( v );
+			}
+		}
+
+		/// <summary>
+		/// Atomically replace the level setting of a level set through properties.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="l"></param>
 		private void PutLevel( string name, Level l ) {
-			levels[ name ] = l;
+			Dictionary<String, Level> nlevels;
+			Dictionary<String, Level> cur;
+			do
+			{
+				cur = levels;
+				nlevels = new Dictionary<String, Level>( cur );
+				nlevels[name] = l;
+			} while (Interlocked.CompareExchange<Dictionary<String, Level>>(ref levels, nlevels, cur) != cur);
 		}
 
 		protected void putPropValue(object obj, string propnm, string value)
 		{
-			Type type = obj.GetType();
-			PropertyInfo propInfo = type.GetProperty(propnm);
-			if( propInfo == null ) {
-				throw new System.ArgumentException("Can't find property named " + propnm+" for "+obj.GetType().FullName );
-			}
+			try {
+				Type type = obj.GetType();
+				PropertyInfo propInfo = type.GetProperty( propnm );
+				if( propInfo == null ) {
+					throw new System.ArgumentException( "Can't find property named " + propnm + " for " + obj.GetType().FullName );
+				}
 
-			if( propInfo.PropertyType == typeof(Int32) ) {
-				propInfo.SetValue(obj, int.Parse(value), null);
-			} else if( propInfo.PropertyType == typeof(long)) {
-				propInfo.SetValue(obj, long.Parse(value), null);
-			}
-			else if (propInfo.PropertyType == typeof(float))
-			{
-				propInfo.SetValue(obj, float.Parse(value), null);
-			}
-			else if (propInfo.PropertyType == typeof(bool))
-			{
-				propInfo.SetValue(obj, bool.Parse(value), null);
-			}
-			else if (propInfo.PropertyType == typeof(string))
-			{
-				propInfo.SetValue(obj, value, null);
-			} else {
-				throw new System.ArgumentException("don't konw how to set property type "+propInfo.PropertyType );
+				if( propInfo.PropertyType == typeof( Int32 ) ) {
+					propInfo.SetValue( obj, int.Parse( value ), null );
+				}
+				else if( propInfo.PropertyType == typeof( long ) ) {
+					propInfo.SetValue( obj, long.Parse( value ), null );
+				}
+				else if( propInfo.PropertyType == typeof( float ) ) {
+					propInfo.SetValue( obj, float.Parse( value ), null );
+				}
+				else if( propInfo.PropertyType == typeof( bool ) ) {
+					propInfo.SetValue( obj, bool.Parse( value ), null );
+				}
+				else if( propInfo.PropertyType == typeof( string ) ) {
+					propInfo.SetValue( obj, value, null );
+				}
+				else {
+					throw new System.ArgumentException( "don't konw how to set property type " + propInfo.PropertyType );
+				}
+			} catch( Exception ex ) {
+				EventLog.WriteEntry( EventLogParms.Source, "Error processing property assignment of " + propnm + " to " + value + " for " + obj+": "+ ex.Message );
+				throw;
 			}
 		}
 
@@ -546,6 +705,18 @@ namespace NetLog.Logging
 
 		internal static void ConsoleWrite( string p ) {
 			Console.Write(p);
+		}
+
+		internal Handler GetDefaultHandler() {
+			String nm = typeof( ConsoleHandler ).FullName;
+			lock( handlers ) {
+				if( handlers.ContainsKey( nm ) ) {
+					return handlers[ nm ];
+				}
+				ConsoleHandler h = new ConsoleHandler();
+				handlers[ nm ] = h;
+				return h;
+			}
 		}
 	}
 }

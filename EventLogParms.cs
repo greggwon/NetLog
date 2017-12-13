@@ -14,19 +14,19 @@ namespace NetLog.Logging {
 	/// </summary>
 	public class EventLogParms {
 		private static string source;
-		public static String Logfile { get; set; }
+		public static String LogName { get; set; }
 		public static String Source {
 			get { return source; }
 			set {
 				source = value;
 				try {
-					if( EventLog.SourceExists(source, ".") == false ) {
-						EventLog.CreateEventSource(source, Logfile);
+					if( EventLog.SourceExists(source, System.Environment.MachineName ) == false ) {
+						EventLog.CreateEventSource(source, LogName);
 					}
 				} catch( SecurityException ex ) {
 					Console.WriteLine( ex );
 					try {
-						EventLog.CreateEventSource( source, Logfile );
+						EventLog.CreateEventSource( source, LogName );
 					} catch( Exception exx ) {
 						Console.WriteLine( "Can not create source after security exception: "+ exx );
 					}
@@ -35,9 +35,11 @@ namespace NetLog.Logging {
 				}
 			}
 		}
+
 		static EventLogParms() {
-			Source = "NetLog.Logging";
-			Logfile = "Application";
+			// LogName must be set first because setSource() refers to it.
+			LogName = "Application";
+			Source = "NetLogLogging";
 		}
 	}
 }
