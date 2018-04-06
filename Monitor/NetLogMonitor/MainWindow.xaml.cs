@@ -316,13 +316,22 @@ namespace NetLog.NetLogMonitor {
 				log.fine(ex);
 				return;
 			}
-			while( trimmingLines && eventList.Items.Count > maxLines ) {
-				MatchPatternItem mp = (MatchPatternItem)eventList.Items[ 0 ];
-				cache.Add( mp );
-				eventList.Items.RemoveAt(0);
-			}
+            while (trimmingLines && eventList.Items.Count > maxLines)
+            {
+                MatchPatternItem mp = (MatchPatternItem) eventList.Items[0];
+                cache.Add(mp);
+                eventList.Items.RemoveAt(0);
+            }
+            while (trimmingLines && matchedList.Items.Count > maxLines)
+            {
+                MatchPatternItem mp = (MatchPatternItem) matchedList.Items[0];
+                cache.Add(mp);
+                matchedList.Items.RemoveAt(0);
+            }
 
 			if( scrollEnd ) {
+                if( matchedList.Items.Count > 0 )
+                    matchedList.ScrollIntoView(matchedList.Items[matchedList.Items.Count - 1]);
 				eventList.ScrollIntoView(eventList.Items[ eventList.Items.Count - 1 ]);
 			}
 		}
@@ -337,6 +346,8 @@ namespace NetLog.NetLogMonitor {
 						eventList.Items.Add( MatchPatternFor( ss ) );
 					} else {
 						eventList.Items.Add( MatchPatternFor( ss, d ) );
+                        if(!matchedPaused)
+                            matchedList.Items.Add(MatchPatternFor(ss, d));
 					}
 				}
 			}
@@ -961,6 +972,17 @@ namespace NetLog.NetLogMonitor {
 				eventList.FontSize = 19;
 			}  
 		}
+        
+        bool matchedPaused;
+        private void PauseMatchesButton_Click(object sender, RoutedEventArgs e)
+        {
+            matchedPaused = PauseMatchesButton.IsChecked.Value;
+        }
+
+        private void ClearMatchesButton_Click(object sender, RoutedEventArgs e)
+        {
+            matchedList.Items.Clear();
+        }
 	}
 	public class MyLogger {
 		Handler h;
