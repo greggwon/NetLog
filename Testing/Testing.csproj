@@ -132,7 +132,7 @@
       <Project>{f8cf2501-363d-4eba-b915-6afed536a7a7}</Project>
       <Name>ELAMDriver</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\iwelllink-workspace\lufkin.iwelllink.v1_0\ELAMDriver\Logging\NetLog.Logging.csproj">
+    <ProjectReference Include="..\NetLog.Logging.csproj">
       <Project>{dd1c3fd6-e234-4b47-afa3-6da51c1f7eac}</Project>
       <Name>NetLog.Logging</Name>
     </ProjectReference>

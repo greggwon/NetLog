@@ -60,7 +60,7 @@ namespace NetLog.Logging
 		}
 
 		public void ReadConfiguration() {
-			Console.WriteLine( "Reading Configuration: " + Environment.StackTrace );
+			//Console.WriteLine( "Reading Configuration: " + Environment.StackTrace );
 			string initName = System.Environment.GetEnvironmentVariable( "netlog.logging.config.class" );
 			string initAsmb = System.Environment.GetEnvironmentVariable( "netlog.logging.config.assembly" );
 			if ( initName != null ) {
