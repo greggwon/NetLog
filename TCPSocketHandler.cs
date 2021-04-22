@@ -18,7 +18,8 @@ namespace NetLog.Logging {
 	public class TCPSocketHandler : Handler {
 		private ListenerManager listener;
 		internal bool listening;
-		private int port = 12314;
+		private const int DEFAULT_PORT = 12367;
+		private int port = DEFAULT_PORT;
 		private string addr;
 #if BonjourEnabled
 		private string appName;
@@ -45,7 +46,7 @@ namespace NetLog.Logging {
 		}
 
 		public TCPSocketHandler()
-			: this(12314) {
+			: this( DEFAULT_PORT ) {
 		}
 
 		/// <summary>
@@ -196,7 +197,7 @@ namespace NetLog.Logging {
 	internal class ListenerManager : IDisposable {
 		internal List<TcpClient>remoteSockets;
 		private bool stopping;
-		private volatile TCPSocketHandler hand;
+		private readonly TCPSocketHandler hand;
 		private string addr;
 #if BonjourEnabled
 		private string type, name;
@@ -204,7 +205,7 @@ namespace NetLog.Logging {
 		private string domain;
 		private string appName;
 #endif
-		private static Logger log = Logger.GetLogger(typeof(ListenerManager).FullName);
+		private static readonly Logger log = Logger.GetLogger(typeof(ListenerManager).FullName);
 
 		public void Dispose() {
 			Dispose(true);
@@ -491,7 +492,7 @@ namespace NetLog.Logging {
 			}
 			set {
 				addr = value;
-				reconnect("address change");
+				Reconnect("address change");
 			}
 		}
 
@@ -503,12 +504,12 @@ namespace NetLog.Logging {
 			set {
 				if( port != value ) {
 					port = value;
-					reconnect( "port change" );
+					Reconnect( "port change" );
 				}
 			}
 		}
 
-		private void reconnect(string why) {
+		private void Reconnect(string why) {
 			if( hand == null || hand.listening == false )
 				return;
 			try {

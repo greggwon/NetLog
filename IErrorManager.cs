@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace NetLog.Logging
 {
-	public interface ErrorManager
+	public interface IErrorManager
 	{
-		void reportError( String msg, Exception ex, int code );
+		void ReportError( String msg, Exception ex, int code );
 	}
 }

@@ -13,26 +13,35 @@ namespace NetLog.Logging {
 	/// logfile, which is "Application" by default.
 	/// </summary>
 	public class EventLogParms {
-		private static string source;
-		public static String Logfile { get; set; }
+		private static string source, logFile;
+		public static String Logfile {
+			get { return logFile; }
+			set {
+				logFile = value;
+				SetupSourceLogfile();
+			}
+		}
 		public static String Source {
 			get { return source; }
 			set {
 				source = value;
-				try {
-					if( EventLog.SourceExists(source, ".") == false ) {
-						EventLog.CreateEventSource(source, Logfile);
-					}
-				} catch( SecurityException ex ) {
-					Console.WriteLine( ex );
-					try {
-						EventLog.CreateEventSource( source, Logfile );
-					} catch( Exception exx ) {
-						Console.WriteLine( "Can not create source after security exception: "+ exx );
-					}
-				} catch( Exception ex ) {
-					Console.WriteLine( ex );
+				SetupSourceLogfile();
+			}
+		}
+		private static void SetupSourceLogfile() {
+			try {
+				if( EventLog.SourceExists( source, "." ) == false ) {
+					EventLog.CreateEventSource( source, Logfile );
 				}
+			} catch( SecurityException ex ) {
+				Console.WriteLine( ex );
+				try {
+					EventLog.CreateEventSource( source, Logfile );
+				} catch( Exception exx ) {
+					Console.WriteLine( "Can not create source after security exception: " + exx );
+				}
+			} catch( Exception ex ) {
+				Console.WriteLine( ex );
 			}
 		}
 		static EventLogParms() {

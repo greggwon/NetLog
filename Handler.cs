@@ -12,7 +12,7 @@ namespace NetLog.Logging
 
 	public abstract class Handler
 	{
-		private ErrorManager errorMgr;
+		private IErrorManager errorMgr;
 		private Formatter fmtr;
 		private Filter filter;
 		private Level level;
@@ -98,7 +98,6 @@ namespace NetLog.Logging
 		 * the loop, thus assuring the queue was empty at that moment.
 		 */
 		protected bool processor() {
-			LogRecord rec;
 
 			// A thread which already holds the lock is somehow recursively reentering
 			// and we just need to return in that case because there is nothing for
@@ -139,7 +138,7 @@ namespace NetLog.Logging
 					}
 					if( consoleDebug )
 						Console.WriteLine( "Got lock, trying dequeue and push: " + limiting + ", cnt: " + cnt + ", wait: " + waitCount );
-					while( records.TryDequeue( out rec ) ) {
+					while( records.TryDequeue( out LogRecord rec ) ) {
 						Push( rec );
 						if ( consoleDebug )
 							Console.WriteLine( ( ( limiting && cnt > waitCount ) ? "" : "not " ) + "pushing next record : " + Thread.CurrentThread );
@@ -210,7 +209,7 @@ namespace NetLog.Logging
 		/// </summary>
 		public abstract void Close();
 
-		public ErrorManager getErrorManager() {
+		public IErrorManager getErrorManager() {
 			return errorMgr;
 		}
 
@@ -240,7 +239,7 @@ namespace NetLog.Logging
 				havePrefix = prefix.Length > 0;
 			}
 		}
-		public ErrorManager ErrorManager {
+		public IErrorManager ErrorManager {
 			get { return errorMgr; }
 			set { errorMgr = value; }
 		}
@@ -262,7 +261,7 @@ namespace NetLog.Logging
 		}
 		protected void reportError( String msg, Exception ex, int code ) {
 			if( errorMgr != null )
-				errorMgr.reportError( msg, ex, code );
+				errorMgr.ReportError( msg, ex, code );
 		}
 	}
 }

@@ -20,6 +20,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+#pragma warning disable IDE1006 // Naming Styles
+#pragma warning disable IDE0017 // Naming Styles
+#pragma warning disable IDE0044 // Naming Styles
 
 namespace NetLog.NetLogMonitor {
 	/// <summary>
@@ -158,18 +161,18 @@ namespace NetLog.NetLogMonitor {
 				conn.BeginConnect("localhost", port, onConnect, conn);
 			} catch( Exception ex ) {
 				log.severe(ex);
-				ThreadStart start = delegate() {
-					disp.Invoke(DispatcherPriority.Normal,
-						new Action(() => {
+				void start() {
+					disp.Invoke( DispatcherPriority.Normal,
+						new Action( () => {
 							String str;
 							Connect.IsEnabled = true;
-							MessageBox.Show(str = String.Format("Error Connecting to localhost:{0}\n\n{1}",
-								tcpPort.Text, ex.Message),
-								String.Format("Error Connecting to localhost:{0}", tcpPort.Text),
-								MessageBoxButton.OK, MessageBoxImage.Warning);
-							AppendText(str);
-						}));
-				};
+							MessageBox.Show( str = String.Format( "Error Connecting to localhost:{0}\n\n{1}",
+								tcpPort.Text, ex.Message ),
+								String.Format( "Error Connecting to localhost:{0}", tcpPort.Text ),
+								MessageBoxButton.OK, MessageBoxImage.Warning );
+							AppendText( str );
+						} ) );
+				}
 				new Thread(start).Start();
 				return;
 			}
@@ -221,7 +224,7 @@ namespace NetLog.NetLogMonitor {
 							disp.Invoke(DispatcherPriority.Normal,
 								new Action(() => {
 									Connect.IsEnabled = true;
-									Connect.Content = "Cancel";
+									Connect.Content = "Connect";
 									Connect.Click -= Connect_Click;
 									Connect.Click -= Connect_Cancel;
 									Connect.Click += Connect_Click;
@@ -308,7 +311,7 @@ namespace NetLog.NetLogMonitor {
 		private void PostAppend() {
 
 			// keep from trimming for garbage values
-			int maxLines = int.MaxValue;
+			int maxLines;
 
 			try {
 				maxLines = int.Parse(trimLineCount.Text);
@@ -483,8 +486,32 @@ namespace NetLog.NetLogMonitor {
 			startDrag = -1;
 		}
 
+		private bool IsBright( Brush brush ) {
+			bool isBright = false;
+			if( brush is SolidColorBrush ) {
+				SolidColorBrush br = brush as SolidColorBrush;
+				int r = br.Color.R;
+				int g = br.Color.G;
+				int b = br.Color.B;
+				isBright = ( r + g + b ) > 200;
+				Console.WriteLine( "r={0}, g={1}, b={2} = {3}", r, g, b, r + g + b );
+			} else {
+				Console.WriteLine( "Unknown brush type: {0}", brush.GetType().Name );
+			}
+
+			return isBright;
+		}
+
 		private void eventList_SelectionChanged( object sender, SelectionChangedEventArgs e ) {
-			
+			Console.WriteLine( "selection changed" );
+			foreach( MatchPatternItem el in e.AddedItems ) {
+				Console.WriteLine( "Setting dark foreground for: {0}", el );
+				el.Foreground = /* IsBright( el.color.back ) ? SystemColors.ControlLightLightBrush : */ SystemColors.ControlDarkDarkBrush;
+			}
+			foreach( MatchPatternItem el in e.RemovedItems ) {
+				Console.WriteLine( "Resetting dark foreground for: {0}", el );
+				el.Foreground = el.color.fore;
+			}
 			//if( (e.AddedItems.Count == 1 || e.RemovedItems.Count == 1) && selectionSource == null) {
 			//	log.info("1 selected, source: {0}", e.Source);
 			//	foreach( object o in e.AddedItems ) {
@@ -513,6 +540,8 @@ namespace NetLog.NetLogMonitor {
 				//}
 				//item.Background = item.color.fore;
 				//item.Foreground = item.color.back;
+			} else {
+				editMatch.IsEnabled = deleteMatch.IsEnabled = false;
 			}
 		}
 
@@ -725,7 +754,10 @@ namespace NetLog.NetLogMonitor {
 		}
 
 		private void deleteMatch_Click( object sender, RoutedEventArgs e ) {
-			patternList.Items.RemoveAt(patternList.SelectedIndex);
+			deleteMatch.IsEnabled = false;
+			if( patternList.SelectedIndex >= 0 && patternList.SelectedIndex < patternList.Items.Count ) {
+				patternList.Items.RemoveAt( patternList.SelectedIndex );
+			}
 			dirty = true;
 		}
 
@@ -798,7 +830,7 @@ namespace NetLog.NetLogMonitor {
 				d.FileName = "MatchPattern";
 				d.DefaultExt = "mpat";
 				d.Filter = "Patterns (*.mpat)|*.mpat|All Files (*.*)|*.*";
-				d.InitialDirectory = lastdir != null ? lastdir : Directory.GetCurrentDirectory();
+				d.InitialDirectory = lastdir ?? Directory.GetCurrentDirectory();
 				success = d.ShowDialog();
 				if( success.Value ) {
 					string name = d.FileName;
@@ -819,7 +851,7 @@ namespace NetLog.NetLogMonitor {
 				d.FileName = lastFile;
 				d.DefaultExt = "mpat";
 				d.Filter = "Patterns (*.mpat)|*.mpat|All Files (*.*)|*.*";
-				d.InitialDirectory = lastdir != null ? lastdir : Directory.GetCurrentDirectory();
+				d.InitialDirectory = lastdir ?? Directory.GetCurrentDirectory();
 				success = d.ShowDialog();
 				if( success.Value ) {
 					string name = d.FileName;
@@ -848,7 +880,7 @@ namespace NetLog.NetLogMonitor {
 							d.FileName = lastFile;
 							d.DefaultExt = "mpat";
 							d.Filter = "Patterns (*.mpat)|*.mpat|All Files (*.*)|*.*";
-							d.InitialDirectory = lastdir != null ? lastdir : Directory.GetCurrentDirectory();
+							d.InitialDirectory = lastdir ?? Directory.GetCurrentDirectory();
 							success = d.ShowDialog();
 							if( success.Value ) {
 								string name = d.FileName;
@@ -871,7 +903,7 @@ namespace NetLog.NetLogMonitor {
 				d.FileName = "MatchPattern";
 				d.DefaultExt = "mpat";
 				d.Filter = "Patterns (*.mpat)|*.mpat|All Files (*.*)|*.*";
-				d.InitialDirectory = lastdir != null ? lastdir : Directory.GetCurrentDirectory();
+				d.InitialDirectory = lastdir ?? Directory.GetCurrentDirectory();
 				success = d.ShowDialog();
 				if( success.Value ) {
 					string name = d.FileName;
