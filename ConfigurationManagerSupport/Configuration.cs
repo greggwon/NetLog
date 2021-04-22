@@ -42,7 +42,7 @@ namespace NetLog.Logging {
 			set { this[ "filter" ] = value; }
 		}
 		[ConfigurationProperty("properties", IsKey = false, IsRequired = false)]
-		public PropertyConfigurationElements Properties {
+		public new PropertyConfigurationElements Properties {
 			get { return (PropertyConfigurationElements)this[ "properties" ]; }
 			set { this[ "properties" ] = value; }
 		}
@@ -75,7 +75,7 @@ namespace NetLog.Logging {
 			set { this[ "handler" ] = value; }
 		}
 		[ConfigurationProperty("properties", IsKey = false, IsRequired = false)]
-		public PropertyConfigurationElements Properties {
+		public new PropertyConfigurationElements Properties {
 			get { return (PropertyConfigurationElements)this[ "properties" ]; }
 			set { this[ "properties" ] = value; }
 		}
@@ -110,7 +110,7 @@ namespace NetLog.Logging {
 			set { this[ "formatter" ] = value; }
 		}
 		[ConfigurationProperty("properties", IsKey = false, IsRequired = false)]
-		public PropertyConfigurationElements Properties {
+		public new PropertyConfigurationElements Properties {
 			get { return (PropertyConfigurationElements)this[ "properties" ]; }
 			set { this[ "properties" ] = value; }
 		}
@@ -132,7 +132,7 @@ namespace NetLog.Logging {
 			set { this[ "filter" ] = value; }
 		}
 		[ConfigurationProperty("properties", IsKey = false, IsRequired = false)]
-		public PropertyConfigurationElements Properties {
+		public new PropertyConfigurationElements Properties {
 			get { return (PropertyConfigurationElements)this[ "properties" ]; }
 			set { this[ "properties" ] = value; }
 		}

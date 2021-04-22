@@ -11,7 +11,7 @@ namespace NetLog.Logging
 	{
 //		private Logger log = Logger.GetLogger("NetLog.Logging.FileHandler");
 		private StreamWriter outf;
-		private long len, limit;
+		private long limit;
 		private int gens;
 		protected FileInfo finfo;
 		private string name;
@@ -112,10 +112,6 @@ namespace NetLog.Logging
 			limit = size;
 			gens = generations;
 			Name = name;
-			FileInfo f = new FileInfo( baseFileName( name ) );
-			len = 0;
-			if( f.Exists )
-				len = f.Length;
 			WaitCount = 100;
 			outf = baseFileOpen( true );
 		}
@@ -188,9 +184,9 @@ namespace NetLog.Logging
 			do {
 
 				try {
-					outp = new StreamWriter( rname + (gens>1 ? ".0" : ""), append );
+					finfo = new FileInfo( rname + ( gens > 1 ? ".0" : "" ) );
+					outp = new StreamWriter( finfo.Name, append );
 					outp.AutoFlush = false;
-					finfo = new FileInfo( rname+ (gens>1 ? ".0" : "") );
 				} catch( DirectoryNotFoundException ex ) {
 					LogManager.ConsoleWriteLine("Error opening log file (name=\"" + rname + "\") for writing: " + ex.Message + "\n" + ex.StackTrace, typeof(FileHandler).FullName);
 					Exception ee = ex.InnerException;
@@ -215,7 +211,7 @@ namespace NetLog.Logging
 			return outp;
 		}
 
-		private StringBuilder bld = new StringBuilder();
+		private readonly StringBuilder bld = new StringBuilder();
 		public override void Publish( LogRecord rec ) {
 			if( !firstStart ) {
 				lock( this ) {
@@ -237,22 +233,17 @@ namespace NetLog.Logging
 				shuffleDown();
 				// trunc/reopen the file.
 				outf = baseFileOpen( false );
-				len = 0;
 			}
 
 			outf.Write( bld.ToString() );
 			bld.Clear();
 			if( asyncFlush && outf != null )
 				outf.Flush();
-			len = finfo.Length;
 		}
 
 		protected virtual bool CheckNewFile() {
-			return( outf == null || new FileInfo( name+(gens>1 ? ".0" : "") ).Length > limit );
+			return( outf == null || (new FileInfo( name + ( gens > 1 ? ".0" : "" ) ).Exists ? new FileInfo( name + ( gens > 1 ? ".0" : "" ) ).Length : 0) > limit );
 		}
-
-		private SpinLock pushLock = new SpinLock();
-
 		/// <summary>
 		/// There will only ever be exactly one thread calling into this method, so
 		/// we don't need to lock anything regarding output file changes.  The single

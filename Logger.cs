@@ -13,7 +13,7 @@ namespace NetLog.Logging
 		private String name;
 		private List<Handler> handlers;
 		internal volatile Level level;
-		private static bool consoleDebug;
+		private static bool consoleDebug = false;
 		private volatile bool useParentHandlers = true;
 		private List<LogDetailsListener>listeners = new List<LogDetailsListener>();
 
@@ -69,7 +69,7 @@ namespace NetLog.Logging
 			// to preset levels when logging.properties has such content, and so
 			// we want to find those logger instances, instead of creating them here,
 			// and then not seeing those instances if we do things out of order.
-			LogManager lm = LogManager.GetLogManager( );
+			_ = LogManager.GetLogManager();
 			if ( consoleDebug )
 				Console.WriteLine( "Get logger \"" + name + "\": have? " + ( LogManager.Loggers.ContainsKey( name ) ? ( "YES, Level: " + LogManager.Loggers[name].Level ) : "NO" ) );
 			
