@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32126.317
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetLog.Logging", "NetLog.Logging.csproj", "{DD1C3FD6-E234-4B47-AFA3-6DA51C1F7EAC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Testing", "Testing\Testing.csproj", "{F42822A8-0CF1-4E76-B5B0-74CB79BFA5D9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetLogCore", "NetLogCore\NetLogCore.csproj", "{928B6D5A-592F-4811-A1B3-920D64AE1130}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,8 +23,15 @@ Global
 		{F42822A8-0CF1-4E76-B5B0-74CB79BFA5D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F42822A8-0CF1-4E76-B5B0-74CB79BFA5D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F42822A8-0CF1-4E76-B5B0-74CB79BFA5D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{928B6D5A-592F-4811-A1B3-920D64AE1130}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{928B6D5A-592F-4811-A1B3-920D64AE1130}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{928B6D5A-592F-4811-A1B3-920D64AE1130}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{928B6D5A-592F-4811-A1B3-920D64AE1130}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6BB8C15A-762C-46D5-A64E-F8AB52738C7E}
 	EndGlobalSection
 EndGlobal
