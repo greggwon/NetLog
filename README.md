@@ -3,4 +3,4 @@ This assembly provides a logging API for .net which is based off of the java.uti
 
 But, the logging.properties file in the processes current directory can be used to specify the list of Handler implementations that are associated with the Root ("") Logger instance, as well as each ones Level and Formatter.
 
-The logging.properties file can also be specified by the 
+The logging.properties file can also be specified by the netlog.logging.config.file environment variable.
