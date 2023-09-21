@@ -13,8 +13,10 @@ namespace NetLog.test
 		public static void Main() {
 			Logger log = Logger.GetLogger( "NetLog.test.LogText" );
 			log.Level = Level.ALL;
-			Logger.GetLogger("").GetHandlers()[0].Formatter = new StreamFormatter();
-			Logger.GetLogger("").GetHandlers()[0].Level = Level.ALL;
+			foreach( var h in Logger.GetLogger("").GetHandlers() ) {
+				h.Formatter = new StreamFormatter();
+				h.Level = Level.ALL;
+			}
 
 			log.fine( "log message" );
 			log.fine( "log message {0}", "with parameters" );

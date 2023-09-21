@@ -7,8 +7,169 @@ using System.Collections;
 
 namespace NetLog.Logging
 {
+	public interface ILogger : ILogActions {
+		public Level Level {get;set;}
+		public Logger Parent {get;}
+		public string Name {get;set;}
+		public void AddHandler( Handler h );
+		public void RemoveHandler( Handler h ) ;
+		public IEnumerable<Handler> GetHandlers();
+		public bool AddDetailListener( LogDetailsListener lis );
+		public bool RemoveDetailListener( LogDetailsListener lis );
+		public void Flush();
+		public void ClearHandlers();
+	}
+	public interface ILogActions {
+		public void Finest ( Exception ex );
+		public void Finest ( string msg );
+		public void Finest ( string msg, Exception ex );
+		public void Finest ( string msg, Exception ex, params object[ ] parms );
+		public void Finest ( string msg, params object[] parms );
+		public void Finer ( Exception ex );
+		public void Finer ( string msg );
+		public void Finer ( string msg, Exception ex );
+		public void Finer ( string msg, Exception ex, params object[ ] parms );
+		public void Finer ( string msg, params object[ ] parms );
+		public void Entering( Type sourceClass, object sourceMethod );
+		public void Entering( Type sourceClass, object sourceMethod, params object[] param );
+		public void Entering( string sourceClass, string sourceMethod );
+		public void Entering(string sourceClass, string sourceMethod, params object[] param);
+		public void Exiting(string sourceClass, string sourceMethod);
+		public void Exiting(string sourceClass, string sourceMethod, params object[] param);
+		public void Throwing(string sourceClass, string sourceMethod, Exception thrown);
+		public void Fine ( Exception ex );
+		public void Fine ( string msg );
+		public void Fine( string msg, Exception ex );
+		public void Fine( string msg, params object[] parms );
+		public void Fine( string msg, Exception ex, params object[] parms );
+		public void Config ( Exception ex );
+		public void Config ( string msg );
+		public void Config( string msg, Exception ex );
+		public void Config ( string msg, Exception ex, params object[ ] parms );
+		public void Config ( string msg, params object[ ] parms );
+		public void Info ( Exception ex );
+		public void Info ( string msg );
+		public void Info ( string msg, Exception ex );
+		public void Info ( string msg, Exception ex, params object[ ] parms );
+		public void Info ( string msg, params object[ ] parms );
+		public void Warning ( Exception ex );
+		public void Warning ( string msg );
+		public void Warning ( string msg, Exception ex );
+		public void Warning ( string msg, Exception ex, params object[ ] parms );
+		public void Warning ( string msg, params object[ ] parms );
+		public void Severe ( Exception ex );
+		public void Severe ( string msg );
+		public void Severe ( string msg, Exception ex );
+		public void Severe ( string msg, Exception ex, params object[ ] parms );
+		public void Severe ( string msg, params object[ ] parms );
+		public void Log ( Level level, Exception ex );
+		public void Log ( Level level, string msg );
+		public void Log ( Level level, string msg, Exception ex );
+		public void Log ( Level level, string msg, Exception ex, params object[ ] parms );
+		public void Log ( Level level, string msg, params object[ ] parms );
+		public bool IsLoggable( Level level );
+		public void Log( LogRecord rec );
+		[Obsolete]
+		public void finest ( Exception ex );
+		[Obsolete]
+		public void finest ( string msg );
+		[Obsolete]
+		public void finest ( string msg, Exception ex );
+		[Obsolete]
+		public void finest ( string msg, Exception ex, params object[ ] parms );
+		[Obsolete]
+		public void finest ( string msg, params object[] parms );
+		[Obsolete]
+		public void finer ( Exception ex );
+		[Obsolete]
+		public void finer ( string msg );
+		[Obsolete]
+		public void finer ( string msg, Exception ex );
+		[Obsolete]
+		public void finer ( string msg, Exception ex, params object[ ] parms );
+		[Obsolete]
+		public void finer ( string msg, params object[ ] parms );
+		[Obsolete]
+		public void entering( Type sourceClass, object sourceMethod );
+		[Obsolete]
+		public void entering( Type sourceClass, object sourceMethod, params object[] param );
+		[Obsolete]
+		public void entering( string sourceClass, string sourceMethod );
+		[Obsolete]
+		public void entering(string sourceClass, string sourceMethod, params object[] param);
+		[Obsolete]
+		public void exiting(string sourceClass, string sourceMethod);
+		[Obsolete]
+		public void exiting(string sourceClass, string sourceMethod, params object[] param);
+		[Obsolete]
+		public void throwing(string sourceClass, string sourceMethod, Exception thrown);
+		[Obsolete]
+		public void fine ( Exception ex );
+		[Obsolete]
+		public void fine ( string msg );
+		[Obsolete]
+		public void fine( string msg, Exception ex );
+		[Obsolete]
+		public void fine( string msg, params object[] parms );
+		[Obsolete]
+		public void fine( string msg, Exception ex, params object[] parms );
+		[Obsolete]
+		public void config ( Exception ex );
+		[Obsolete]
+		public void config ( string msg );
+		[Obsolete]
+		public void config( string msg, Exception ex );
+		[Obsolete]
+		public void config ( string msg, Exception ex, params object[ ] parms );
+		[Obsolete]
+		public void config ( string msg, params object[ ] parms );
+		[Obsolete]
+		public void info ( Exception ex );
+		[Obsolete]
+		public void info ( string msg );
+		[Obsolete]
+		public void info ( string msg, Exception ex );
+		[Obsolete]
+		public void info ( string msg, Exception ex, params object[ ] parms );
+		[Obsolete]
+		public void info ( string msg, params object[ ] parms );
+		[Obsolete]
+		public void warning ( Exception ex );
+		[Obsolete]
+		public void warning ( string msg );
+		[Obsolete]
+		public void warning ( string msg, Exception ex );
+		[Obsolete]
+		public void warning ( string msg, Exception ex, params object[ ] parms );
+		[Obsolete]
+		public void warning ( string msg, params object[ ] parms );
+		[Obsolete]
+		public void severe ( Exception ex );
+		[Obsolete]
+		public void severe ( string msg );
+		[Obsolete]
+		public void severe ( string msg, Exception ex );
+		[Obsolete]
+		public void severe ( string msg, Exception ex, params object[ ] parms );
+		[Obsolete]
+		public void severe ( string msg, params object[ ] parms );
+		[Obsolete]
+		public void log ( Level level, Exception ex );
+		[Obsolete]
+		public void log ( Level level, string msg );
+		[Obsolete]
+		public void log ( Level level, string msg, Exception ex );
+		[Obsolete]
+		public void log ( Level level, string msg, Exception ex, params object[ ] parms );
+		[Obsolete]
+		public void log ( Level level, string msg, params object[ ] parms );
+		[Obsolete]
+		public bool isLoggable( Level level );
+		[Obsolete]
+		public void log( LogRecord rec );
+	}
 	public delegate void LogDetailsListener(Logger log);
-    public class Logger
+    public class Logger : LogActions, ILogger
     {
 		private String name;
 		private List<Handler> handlers;
@@ -210,8 +371,7 @@ namespace NetLog.Logging
 			}
 			NotifyDetailListeners();
 		}
-
-		public List<Handler> GetHandlers() {
+		public IEnumerable<Handler> GetHandlers() {
 			return handlers;
 		}
 
@@ -225,224 +385,11 @@ namespace NetLog.Logging
 			this.handlers = new List<Handler>();
 		}
 
-		public void finest ( Exception ex ) {
-			log( Level.FINEST, ex );
-		}
-		public void finest ( string msg ) {
-			log( Level.FINEST, msg );
-		}
-		public void finest ( string msg, Exception ex ) {
-			log( Level.FINEST, msg, ex );
+		public void ClearHandlers() {
+			handlers.Clear();
 		}
 
-		public void finest ( string msg, Exception ex, params object[ ] parms ) {
-			log( Level.FINEST, msg, ex, parms );
-		}
-
-		public void finest ( string msg, params object[] parms ) {
-			log( Level.FINEST, msg, parms );
-		}
-
-		public void finer ( Exception ex ) {
-			log( Level.FINER, ex );
-		}
-		public void finer ( string msg ) {
-			log( Level.FINER, msg );
-		}
-		public void finer ( string msg, Exception ex ) {
-			log( Level.FINER, msg, ex );
-		}
-
-		public void finer ( string msg, Exception ex, params object[ ] parms ) {
-			log( Level.FINER, msg, ex, parms );
-		}
-
-		public void finer ( string msg, params object[ ] parms ) {
-			log( Level.FINER, msg, parms );
-		}
-
-		public void entering( Type sourceClass, object sourceMethod ) {
-			entering(sourceClass.FullName, sourceMethod.ToString());
-		}
-
-		public void entering( Type sourceClass, object sourceMethod, params object[] param ) {
-			entering(sourceClass.FullName, sourceMethod.ToString(), param);
-		}
-
-		public void entering( string sourceClass, string sourceMethod ) {
-			LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
-			rec.SourceClassName = sourceClass;
-			rec.SourceMethodName = sourceMethod;
-			log(rec);
-		}
-
-		public void entering(string sourceClass, string sourceMethod, params object[] param)
-		{
-			LogRecord rec = new LogRecord(Level.FINER, "ENTRY");
-			rec.SourceClassName = sourceClass;
-			rec.SourceMethodName = sourceMethod;
-			rec.Parameters = param;
-			log(rec);
-		}
-		public void exiting(string sourceClass, string sourceMethod)
-		{
-			LogRecord rec = new LogRecord(Level.FINER, "EXIT");
-			rec.SourceClassName = sourceClass;
-			rec.SourceMethodName = sourceMethod;
-			log(rec);
-		}
-
-		public void exiting(string sourceClass, string sourceMethod, params object[] param)
-		{
-			LogRecord rec = new LogRecord(Level.FINER, "EXIT");
-			rec.SourceClassName = sourceClass;
-			rec.SourceMethodName = sourceMethod;
-			rec.Parameters = param;
-			log(rec);
-		}
-		public void throwing(string sourceClass, string sourceMethod, Exception thrown)
-		{
-			LogRecord rec = new LogRecord(Level.FINER, "THROW");
-			rec.SourceClassName = sourceClass;
-			rec.SourceMethodName = sourceMethod;
-			rec.Thrown = thrown;
-			log(rec);
-		}
-
-		public void fine ( Exception ex ) {
-			log( Level.FINE, ex );
-		}
-		public void fine ( string msg ) {
-			log( Level.FINE, msg );
-		}
-		public void fine( string msg, Exception ex ) {
-			log(Level.FINE, msg, ex);
-		}
-
-		public void fine( string msg, params object[] parms ) {
-			log(Level.FINE, msg, parms);
-		}
-		public void fine( string msg, Exception ex, params object[] parms ) {
-			log( Level.FINE, msg, ex, parms );
-		}
-
-		public void config ( Exception ex ) {
-			log( Level.CONFIG, ex );
-		}
-		public void config ( string msg ) {
-			log( Level.CONFIG, msg );
-		}
-		public void config( string msg, Exception ex ) {
-			log(Level.CONFIG, msg, ex);
-		}
-
-		public void config ( string msg, Exception ex, params object[ ] parms ) {
-			log( Level.CONFIG, msg, ex, parms );
-		}
-
-		public void config ( string msg, params object[ ] parms ) {
-			log( Level.CONFIG, msg, parms );
-		}
-
-		public void info ( Exception ex ) {
-			log( Level.INFO, ex );
-		}
-		public void info ( string msg ) {
-			log( Level.INFO, msg );
-		}
-		public void info ( string msg, Exception ex ) {
-			log( Level.INFO, msg, ex );
-		}
-
-		public void info ( string msg, Exception ex, params object[ ] parms ) {
-			log( Level.INFO, msg, ex, parms );
-		}
-
-		public void info ( string msg, params object[ ] parms ) {
-			log( Level.INFO, msg, parms );
-		}
-
-		public void warning ( Exception ex ) {
-			log( Level.WARNING, ex );
-		}
-		public void warning ( string msg ) {
-			log( Level.WARNING, msg );
-		}
-		public void warning ( string msg, Exception ex ) {
-			log( Level.WARNING, msg, ex );
-		}
-
-		public void warning ( string msg, Exception ex, params object[ ] parms ) {
-			log( Level.WARNING, msg, ex, parms );
-		}
-
-		public void warning ( string msg, params object[ ] parms ) {
-			log( Level.WARNING, msg, parms );
-		}
-
-		public void severe ( Exception ex ) {
-			log( Level.SEVERE, ex );
-		}
-		public void severe ( string msg ) {
-			log( Level.SEVERE, msg );
-		}
-		public void severe ( string msg, Exception ex ) {
-			log( Level.SEVERE, msg, ex );
-		}
-
-		public void severe ( string msg, Exception ex, params object[ ] parms ) {
-			log( Level.SEVERE, msg, ex, parms );
-		}
-
-		public void severe ( string msg, params object[ ] parms ) {
-			log( Level.SEVERE, msg, parms );
-		}
-
-
-		public void log ( Level level, Exception ex ) {
-			LogRecord rec = new LogRecord( level, ex.GetType().FullName+": "+ex.Message );
-			rec.Thrown = ex;
-			log( rec );
-		}
-		public void log ( Level level, string msg )
-		{
-			log( new LogRecord( level, msg ) );
-		}
-		public void log ( Level level, string msg, Exception ex ) {
-			LogRecord rec = new LogRecord( level, msg );
-			rec.Thrown = ex;
-			log( rec );
-		}
-
-		public void log ( Level level, string msg, Exception ex, params object[ ] parms ) {
-			LogRecord rec = new LogRecord( level, msg );
-			rec.Parameters = parms;
-			rec.Thrown = ex;
-			log( rec );
-		}
-
-		public void log ( Level level, string msg, params object[ ] parms )
-		{
-			LogRecord rec = new LogRecord( level, msg );
-			rec.Parameters = parms;
-			log (rec) ;
-		}
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="level"></param>
-		/// <returns></returns>
-		[Obsolete]
-		public bool isLoggable( Level level ) {
-			return IsLoggable(level);
-		}
-
-		public bool IsLoggable( Level level ) {
-			return ( level.IntValue >= this.Level.IntValue && this.Level != Level.OFF );
-		}
-
-		public void log( LogRecord rec )
-		{
+		public override void Log( LogRecord rec ) {
 			rec.LoggerName = name;
 			Logger logger = this;
 			Level lowest = logger.Level;

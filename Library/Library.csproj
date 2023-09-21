@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.Net.Sdk">
+   <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>NetLog.Logging</RootNamespace>
+    <AssemblyName>NetLog</AssemblyName>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+   <ItemGroup>
+     <PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
+   </ItemGroup>
+</Project>
